@@ -4,8 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.provider.MediaStore
@@ -21,8 +19,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.math.max
-import kotlin.math.roundToInt
 
 class StudioRepository(private val context: Context) {
     private val lock = Mutex()
@@ -128,25 +124,9 @@ class StudioRepository(private val context: Context) {
 
     private fun normalize(uri: Uri): ByteArray = try {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
-        normalizedBitmap(source)
+        ElyumImages.prepare(source)
     } catch (e: IOException) { throw StudioException("invalid_image") }
-    private fun normalizeBytes(bytes: ByteArray) = normalizedBitmap(ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes)))
-    private fun normalizedBitmap(source: ImageDecoder.Source): ByteArray {
-        val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            if (info.size.width.toLong() * info.size.height > 40_000_000) throw StudioException("image_too_large")
-            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            decoder.isMutableRequired = false
-            val scale = minOf(1.0, 2048.0 / max(info.size.width, info.size.height))
-            decoder.setTargetSize(max(1, (info.size.width * scale).roundToInt()), max(1, (info.size.height * scale).roundToInt()))
-        }
-        val flat = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
-        Canvas(flat).apply { drawColor(Color.WHITE); drawBitmap(bitmap, 0f, 0f, null) }
-        val result = ByteArrayOutputStream()
-        flat.compress(Bitmap.CompressFormat.JPEG, 92, result)
-        bitmap.recycle(); flat.recycle()
-        if (result.size() > 10 * 1024 * 1024) throw StudioException("image_too_large")
-        return result.toByteArray()
-    }
+    private fun normalizeBytes(bytes: ByteArray) = ElyumImages.fromBytes(bytes)
 
     suspend fun export(job: StudioJob): Uri = withContext(Dispatchers.IO) {
         val file = safeImage(job)

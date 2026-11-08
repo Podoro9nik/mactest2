@@ -19,6 +19,8 @@ Job: `{id, provider, status:'queued'|'running'|'preview'|'completed'|'failed', i
 
 Frontend language switch ru/en/ja stored in localStorage; all controls and status messages localized. Backend error codes localized by frontend. Code/prompt semantics port from root prompts.py, official references bundled. Multiple photos (1–8) combine in one scene. Classic transformation default; full-creature separate. Credit charge only after preview visible and explicit confirmation of price.
 
+Elyum uploads: each normalized image is at most 2,900,000 bytes, and the entire serialized JSON-RPC upload body is checked against 4 MiB including base64 and the envelope. Large images use bounded JPEG encoding; desktop keeps small PNG references lossless. Codex image preparation is separate. `upload_too_large`, `upload_failed` and `upload_response` describe failures before generation starts. Every reference must upload successfully before `elyum_make_image`; failed writes are never replayed automatically.
+
 Token supplied by root from local .env at build as `CHIIKAWA_EMBEDDED_MCP_KEY`. Never hardcode credentials in source, logs or workflow YAML. User authorized embedding in delivered binaries. MCP endpoint fixed https://elyum.ai/mcp. Official Codex desktop provider must remain; Android has Elyum only because official Codex app-server is desktop-only.
 
 Ownership: backend agent `native/desktop` and Rust tests; design agent `native/ui`, shared assets, `.hallmark`, icon assets; Android agent `native/android`; root build scripts/workflows/documentation/legacy Gradio restore. Communicate contract changes before editing other ownership.

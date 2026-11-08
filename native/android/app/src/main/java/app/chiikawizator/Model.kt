@@ -5,6 +5,9 @@ import org.json.JSONObject
 import java.time.Instant
 
 const val MODEL = "nano-banana-2.1"
+const val MAX_MCP_BODY_BYTES = 4 * 1024 * 1024
+// Leave room for base64 expansion and the complete JSON-RPC envelope.
+const val MAX_ELYUM_IMAGE_BYTES = 2_900_000
 class StudioException(val code: String) : Exception(code)
 
 data class GenerationRequest(
@@ -67,7 +70,11 @@ object Protocol {
         val value = data ?: throw StudioException("invalid_response")
         if (result.optBoolean("isError") || (value.has("error") && !value.isNull("error"))) {
             val error = value.optJSONObject("error") ?: value
-            val code = error.optString("code").takeIf { it in knownErrors } ?: httpError(error.optInt("status", 0))
+            val rawCode = error.optString("code")
+            val code = when (rawCode) {
+                "payload_too_large", "request_too_large", "entity_too_large" -> "upload_too_large"
+                else -> rawCode.takeIf { it in knownErrors } ?: httpError(error.optInt("status", 0))
+            }
             throw StudioException(code)
         }
         return value
@@ -75,7 +82,7 @@ object Protocol {
 
     val knownErrors = setOf("auth", "scope", "browser_only", "key_cap", "maintenance", "renewal_failed", "prompt_too_long", "locked", "insufficient_credits", "content_refused")
     fun httpError(status: Int) = when (status) {
-        401 -> "auth"; 402 -> "insufficient_credits"; 403 -> "scope"; 404 -> "not_found"; 429 -> "rate_limit"; else -> "provider_error"
+        401 -> "auth"; 402 -> "insufficient_credits"; 403 -> "scope"; 404 -> "not_found"; 413 -> "upload_too_large"; 429 -> "rate_limit"; else -> "provider_error"
     }
 
     fun task(data: JSONObject, previous: StudioJob): StudioJob {

@@ -11,12 +11,13 @@ fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\
 android {
     namespace = "app.chiikawizator"
     compileSdk = 36
+    testBuildType = providers.gradleProperty("chiikawaTestBuildType").getOrElse("debug")
     defaultConfig {
         applicationId = "app.chiikawizator"
         minSdk = 29
         targetSdk = 36
-        versionCode = 30000
-        versionName = "3.0.0"
+        versionCode = 30001
+        versionName = "3.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "ELYUM_MCP_KEY", quoted(embeddedKey.get()))
     }

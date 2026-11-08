@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 /** Studio MCP only. The credential is attached to exactly one fixed origin. */
 class ElyumClient(private val key: String, private val api: OkHttpClient = OkHttpClient.Builder()
-    .connectTimeout(15, TimeUnit.SECONDS).readTimeout(65, TimeUnit.SECONDS).callTimeout(70, TimeUnit.SECONDS)
+    .connectTimeout(15, TimeUnit.SECONDS).readTimeout(65, TimeUnit.SECONDS).writeTimeout(65, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS)
     .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()) {
     private var nextId = 0
     private var initialized = false
@@ -26,13 +26,17 @@ class ElyumClient(private val key: String, private val api: OkHttpClient = OkHtt
         val id = ++nextId
         val body = JSONObject().put("jsonrpc", "2.0").put("method", method).put("params", params)
         if (!notification) body.put("id", id)
+        val encodedBody = body.toString().toByteArray(Charsets.UTF_8)
+        if (method == "tools/call" && params.optString("name") == "elyum_upload" && encodedBody.size > MAX_MCP_BODY_BYTES) {
+            throw StudioException("upload_too_large")
+        }
         val attempts = if (retry) 3 else 1
         for (attempt in 0 until attempts) {
             try {
                 val request = Request.Builder().url("https://elyum.ai/mcp")
                     .header("Authorization", "Bearer ${key.trim()}")
                     .header("Accept", "application/json, text/event-stream")
-                    .post(body.toString().toRequestBody("application/json".toMediaType()))
+                    .post(encodedBody.toRequestBody("application/json".toMediaType()))
                 session?.let { request.header("Mcp-Session-Id", it) }
                 protocol?.let { request.header("MCP-Protocol-Version", it) }
                 api.newCall(request.build()).execute().use { response ->
@@ -118,9 +122,18 @@ class ElyumClient(private val key: String, private val api: OkHttpClient = OkHtt
         val urls = JSONArray()
         references.forEachIndexed { index, bytes ->
             onProgress("uploading")
-            val data = tool("elyum_upload", JSONObject().put("base64", java.util.Base64.getEncoder().encodeToString(bytes))
-                .put("mimeType", "image/jpeg").put("filename", "reference-${index + 1}.jpg"))
-            urls.put(mediaUrl(data.nullableString("url")))
+            try {
+                if (bytes.size > MAX_ELYUM_IMAGE_BYTES) throw StudioException("upload_too_large")
+                val data = tool("elyum_upload", JSONObject().put("base64", java.util.Base64.getEncoder().encodeToString(bytes))
+                    .put("mimeType", "image/jpeg").put("filename", "reference-${index + 1}.jpg"))
+                urls.put(mediaUrl(data.nullableString("url")))
+            } catch (e: StudioException) {
+                throw StudioException(when (e.code) {
+                    "network" -> "upload_failed"
+                    "invalid_response" -> "upload_response"
+                    else -> e.code
+                })
+            }
         }
         onProgress("submitting")
         val params = JSONObject().put("model", MODEL).put("prompt", prompt).put("aspectRatio", r.aspectRatio)
