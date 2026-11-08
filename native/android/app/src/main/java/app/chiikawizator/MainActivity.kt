@@ -92,6 +92,7 @@ fun Chiikawizator(vm: StudioViewModel = viewModel()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                     listOf("create", "result", "history", "settings").forEachIndexed { index, key ->
                         TextButton(onClick = { vm.tab(index) }, modifier = Modifier.weight(1f).testTag("tab_$key"),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 12.dp),
                             colors = ButtonDefaults.textButtonColors(containerColor = if (state.tab == index) Blush else Color.Transparent)) {
                             Text(t(key), fontWeight = if (state.tab == index) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
