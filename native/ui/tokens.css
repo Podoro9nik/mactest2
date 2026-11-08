@@ -1,0 +1,18 @@
+:root {
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(52% 0.19 27); --color-success: oklch(50% 0.12 150);
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --color-paper: #fffaf3; --color-paper-2: #f6ece4; --color-paper-3: #efe0d7;
+  --color-ink: #433a37; --color-ink-2: #65504d; --color-muted: #7e6661;
+  --color-rule: #ddc9bf; --color-field-edge: #9c8580; --color-surface: #fffdf9;
+  --color-accent: #a94463; --color-accent-hover: #923650; --color-accent-ink: #fffaf3; --color-focus: #97344f;
+  --color-pink-surface: #fce7ec; --color-blue-surface: #e8f4f8; --color-blue-ink: #305664; --color-overlay: #433a3766;
+  --font-display: 'ChiikawaKawaii', 'Yu Gothic', system-ui, sans-serif; --font-body: 'Segoe UI', 'Yu Gothic UI', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif; --font-outlier: var(--font-body);
+  --radius-card: 24px; --radius-input: 12px; --radius-small: 8px; --radius-pill: 999px; --rule-hair: 1px; --shadow-card: none;
+  --tracking-display: -0.02em;
+}

@@ -1,0 +1,2 @@
+sloplint: clean. 0 FAIL, 0 REFLEX, 0 WARN across 4 file(s) and 1 URL(s).
+render tier not run: no Chrome or Chromium found; set CHROME_PATH

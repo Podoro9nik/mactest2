@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Chiikawizator",
+  "version": "3.0.0",
+  "identifier": "app.chiikawizator.studio",
+  "build": { "frontendDist": "../ui" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "label": "main", "title": "Chiikawizator", "width": 1280, "height": 850, "minWidth": 760, "minHeight": 620, "center": true }],
+    "security": { "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'; base-uri 'none'" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg"],
+    "shortDescription": "Chiikawa image studio",
+    "longDescription": "Create Chiikawa illustrations and transform photos. Preview your image before keeping the original.",
+    "category": "GraphicsAndDesign",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": ["resources/bin/*"],
+    "windows": { "nsis": { "installMode": "currentUser", "displayLanguageSelector": true, "languages": ["English", "Russian", "Japanese"] }, "webviewInstallMode": { "type": "embedBootstrapper" } },
+    "macOS": { "minimumSystemVersion": "11.0", "dmg": { "windowSize": { "width": 660, "height": 420 }, "appPosition": { "x": 180, "y": 190 }, "applicationFolderPosition": { "x": 480, "y": 190 } } }
+  }
+}

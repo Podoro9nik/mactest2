@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Chiikawizator</title><g transform="translate(5.12 5.12) scale(0.96)">
+
+<rect width="256" height="256" rx="56" fill="#fce7ec"/>
+<path d="M58 64C48 39 59 27 73 31C85 33 88 44 88 53C111 45 145 45 169 53C169 38 178 28 190 31C205 34 208 48 198 65C221 85 231 110 229 139C227 182 189 213 129 214C70 215 30 185 27 144C24 110 35 84 58 64Z" fill="#fffdf9" stroke="#302b2b" stroke-width="7" stroke-linejoin="round"/>
+<path d="M78 100Q87 94 95 96M160 96Q169 95 177 100" fill="none" stroke="#302b2b" stroke-width="5" stroke-linecap="round"/>
+<ellipse cx="65" cy="151" rx="22" ry="15" fill="#f5b8cb"/><ellipse cx="191" cy="151" rx="22" ry="15" fill="#f5b8cb"/>
+<ellipse cx="91" cy="131" rx="12" ry="15" fill="#302b2b"/><ellipse cx="165" cy="131" rx="12" ry="15" fill="#302b2b"/>
+<ellipse cx="89" cy="126" rx="6" ry="5" fill="#fffdf9"/><ellipse cx="163" cy="126" rx="6" ry="5" fill="#fffdf9"/>
+<path d="M85 138Q91 141 97 137M159 138Q165 141 171 137" fill="none" stroke="#fffdf9" stroke-width="3" stroke-linecap="round"/>
+<path d="M118 154Q116 162 123 162Q128 161 128 155Q128 161 134 162Q141 161 139 154M126 171Q129 174 132 171" fill="none" stroke="#302b2b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M52 151L57 145M62 154L67 147M73 153L77 147M178 151L183 145M188 154L193 147M199 153L203 147" fill="none" stroke="#302b2b" stroke-width="3.5" stroke-linecap="round"/>
+</g></svg>

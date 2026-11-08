@@ -1,0 +1,84 @@
+name: Native apps
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['native/**', '.github/workflows/native-build.yml', 'CODEX-*.txt']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }} DMG and native smoke test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      CHIIKAWA_EMBEDDED_MCP_KEY: ${{ secrets.CHIIKAWA_EMBEDDED_MCP_KEY }}
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - name: Require personal distribution key
+        shell: bash
+        run: test -n "$CHIIKAWA_EMBEDDED_MCP_KEY" || { echo 'Set the CHIIKAWA_EMBEDDED_MCP_KEY Actions secret.'; exit 1; }
+      - name: Rust stable
+        run: rustup update stable --no-self-update && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/desktop
+      - run: npm ci
+        working-directory: native
+      - name: Bundle official Codex CLI
+        run: node native/scripts/prepare-codex.mjs
+      - name: Backend tests
+        run: cargo test --locked
+        working-directory: native/desktop
+      - name: Build macOS application and DMG
+        run: ../node_modules/.bin/tauri build --bundles app,dmg
+        working-directory: native/desktop
+      - name: Verify actual macOS app
+        shell: bash
+        run: |
+          mkdir -p native/verification
+          APP="native/desktop/target/release/bundle/macos/Chiikawizator.app"
+          BIN="$APP/Contents/MacOS/chiikawizator"
+          "$BIN" --self-test > native/verification/self-test.json
+          "$BIN" --smoke-test "$PWD/native/verification/gui-smoke.json" > native/verification/app.log 2>&1 &
+          APP_PID=$!
+          for attempt in $(seq 1 45); do
+            if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$APP_PID" 2>/dev/null; then kill "$APP_PID"; echo 'GUI smoke test timed out'; exit 1; fi
+          wait "$APP_PID"
+          test -s native/verification/gui-smoke.json
+          node -e 'const r=require("./native/verification/gui-smoke.json"); if(!r.ok) process.exit(1)'
+          hdiutil verify native/desktop/target/release/bundle/dmg/*.dmg
+          shasum -a 256 native/desktop/target/release/bundle/dmg/*.dmg > native/verification/SHA256SUMS.txt
+      - name: Encrypt personal installers before artifact upload
+        shell: bash
+        run: |
+          mkdir -p native/encrypted-artifacts
+          for image in native/desktop/target/release/bundle/dmg/*.dmg; do
+            node native/scripts/artifact-crypto.mjs encrypt "$image" "native/encrypted-artifacts/$(basename "$image").enc"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Chiikawizator-macOS-${{ matrix.arch }}
+          path: |
+            native/encrypted-artifacts/*.enc
+            native/verification/
+          if-no-files-found: warn
+          retention-days: 7
