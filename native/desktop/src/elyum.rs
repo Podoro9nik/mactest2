@@ -14,6 +14,8 @@ use std::{
 
 pub const ENDPOINT: &str = "https://elyum.ai/mcp";
 const MODEL: &str = "nano-banana-2.1";
+// The MCP gateway limits the entire HTTP body, including base64 and JSON.
+const MAX_MCP_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 pub fn configured_key() -> String {
     std::env::var("ELYUM_MCP_KEY")
@@ -33,6 +35,8 @@ pub struct Elyum {
     headers: HeaderMap,
     counter: u64,
     initialized: bool,
+    #[cfg(test)]
+    test_endpoint: Option<String>,
 }
 
 impl Elyum {
@@ -61,7 +65,17 @@ impl Elyum {
             headers,
             counter: 0,
             initialized: false,
+            #[cfg(test)]
+            test_endpoint: None,
         })
+    }
+
+    fn endpoint(&self) -> &str {
+        #[cfg(test)]
+        if let Some(endpoint) = &self.test_endpoint {
+            return endpoint;
+        }
+        ENDPOINT
     }
 
     fn rpc(
@@ -77,13 +91,21 @@ impl Elyum {
         if !notification {
             payload["id"] = json!(id);
         }
+        let body = serde_json::to_vec(&payload).map_err(|_| "invalid_settings")?;
+        if method == "tools/call"
+            && payload["params"]["name"] == "elyum_upload"
+            && body.len() > MAX_MCP_BODY_BYTES
+        {
+            return Err("upload_too_large".into());
+        }
         let attempts = if retry { 3 } else { 1 };
         for attempt in 0..attempts {
             let sent = self
                 .http
-                .post(ENDPOINT)
+                .post(self.endpoint())
                 .headers(self.headers.clone())
-                .json(&payload)
+                .header("content-type", "application/json")
+                .body(body.clone())
                 .send();
             let response = match sent {
                 Ok(response) => response,
@@ -122,8 +144,15 @@ impl Elyum {
                 }
                 value
             };
-            if message.get("error").is_some() {
-                return Err("provider_error".into());
+            if let Some(error) = message.get("error") {
+                return Err(if error["code"].as_i64() == Some(-32602) {
+                    "invalid_settings".into()
+                } else {
+                    provider_error(
+                        error["code"].as_str(),
+                        error["data"]["status"].as_u64().map(|s| s as u16),
+                    )
+                });
             }
             return message
                 .get("result")
@@ -202,15 +231,7 @@ impl Elyum {
         }
         let mut urls = Vec::new();
         for (i, reference) in refs.iter().enumerate() {
-            let (header, encoded) = reference.split_once(',').ok_or("image_invalid")?;
-            let mime = header
-                .strip_prefix("data:")
-                .and_then(|h| h.strip_suffix(";base64"))
-                .ok_or("image_invalid")?;
-            let upload = self.tool("elyum_upload", json!({"base64":encoded,"mimeType":mime,"filename":format!("reference-{}.png", i + 1)}))?;
-            urls.push(media_url(
-                upload["url"].as_str().ok_or("provider_response")?,
-            )?);
+            urls.push(self.upload_reference(reference, i + 1)?);
         }
         let mut params = json!({"prompt":prompt,"model":MODEL,"aspectRatio":ratio,"resolution":resolution,"imageUrls":urls,"clientRef":client_ref});
         if credit_mode {
@@ -227,6 +248,23 @@ impl Elyum {
             status: "queued".into(),
             url: None,
             cost: finite_cost(&estimate["credits"]),
+        })
+    }
+
+    fn upload_reference(&mut self, reference: &str, index: usize) -> AppResult<String> {
+        let (header, encoded) = reference.split_once(',').ok_or("image_invalid")?;
+        let (mime, extension) = match header {
+            "data:image/png;base64" => ("image/png", "png"),
+            "data:image/jpeg;base64" => ("image/jpeg", "jpg"),
+            "data:image/webp;base64" => ("image/webp", "webp"),
+            _ => return Err("image_invalid".into()),
+        };
+        let result = self.tool("elyum_upload", json!({"base64":encoded,"mimeType":mime,"filename":format!("reference-{index}.{extension}")}))
+            .and_then(|upload| media_url(upload["url"].as_str().ok_or("provider_response")?));
+        result.map_err(|error| match error.as_str() {
+            "network" => "upload_failed".into(),
+            "provider_response" => "upload_response".into(),
+            _ => error,
         })
     }
 
@@ -334,11 +372,15 @@ fn provider_error(code: Option<&str>, status: Option<u16>) -> String {
         ) => c.into(),
         Some("prompt_too_long") => "description_too_long".into(),
         Some("locked") => "preview_not_ready".into(),
+        Some("payload_too_large" | "request_too_large" | "file_too_large") => {
+            "upload_too_large".into()
+        }
         _ => match status {
             Some(401) => "auth",
             Some(402) => "insufficient_credits",
             Some(403) => "scope",
             Some(404) => "job_not_found",
+            Some(413) => "upload_too_large",
             Some(429) => "rate_limit",
             Some(400) => "invalid_settings",
             _ => "provider_error",
@@ -488,6 +530,152 @@ pub fn download(url: &str) -> AppResult<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        io::Write,
+        net::TcpListener,
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Mutex,
+        },
+        thread::{self, JoinHandle},
+    };
+
+    #[derive(Clone, Copy)]
+    enum UploadReply {
+        Success,
+        TooLarge,
+        Malformed,
+        Disconnect,
+    }
+
+    struct McpFixture {
+        endpoint: String,
+        requests: Arc<Mutex<Vec<Value>>>,
+        stop: Arc<AtomicBool>,
+        thread: Option<JoinHandle<()>>,
+    }
+
+    impl McpFixture {
+        fn new(upload_reply: UploadReply) -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let endpoint = format!("http://{}/mcp", listener.local_addr().unwrap());
+            listener.set_nonblocking(true).unwrap();
+            let requests = Arc::new(Mutex::new(Vec::<Value>::new()));
+            let stop = Arc::new(AtomicBool::new(false));
+            let captured = requests.clone();
+            let shutdown = stop.clone();
+            let thread = thread::spawn(move || {
+                let mut uploaded = 0;
+                while !shutdown.load(Ordering::Relaxed) {
+                    let (mut socket, _) = match listener.accept() {
+                        Ok(socket) => socket,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(5));
+                            continue;
+                        }
+                        Err(error) => panic!("fixture accept failed: {error}"),
+                    };
+                    socket
+                        .set_read_timeout(Some(Duration::from_secs(3)))
+                        .unwrap();
+                    let mut reader = BufReader::new(socket.try_clone().unwrap());
+                    let mut length = 0;
+                    loop {
+                        let mut line = String::new();
+                        reader.read_line(&mut line).unwrap();
+                        if line.trim().is_empty() {
+                            break;
+                        }
+                        if let Some((name, value)) = line.split_once(':') {
+                            if name.eq_ignore_ascii_case("content-length") {
+                                length = value.trim().parse::<usize>().unwrap();
+                            }
+                        }
+                    }
+                    assert!(length <= MAX_MCP_BODY_BYTES);
+                    let mut body = vec![0u8; length];
+                    reader.read_exact(&mut body).unwrap();
+                    let request: Value = serde_json::from_slice(&body).unwrap();
+                    captured.lock().unwrap().push(request.clone());
+                    let id = request["id"].clone();
+                    let tool = request["params"]["name"].as_str().unwrap_or("");
+                    let mut status = 200;
+                    let mut content_type = "application/json";
+                    let response = if request["method"] == "initialize" {
+                        json!({"id":id,"result":{"protocolVersion":"2025-03-26"}}).to_string()
+                    } else if request["method"] == "notifications/initialized" {
+                        status = 202;
+                        String::new()
+                    } else if tool == "elyum_upload" {
+                        uploaded += 1;
+                        match upload_reply {
+                            UploadReply::Disconnect => continue,
+                            UploadReply::TooLarge => {
+                                status = 413;
+                                json!({"id":null,"error":{"code":-32000,"message":"Payload Too Large: secret must not be exposed"}}).to_string()
+                            }
+                            UploadReply::Malformed => "not JSON".into(),
+                            UploadReply::Success => {
+                                content_type = "text/event-stream";
+                                format!(
+                                    "data: {}\n\ndata: {}\n\n",
+                                    json!({"method":"notifications/progress"}),
+                                    json!({"id":id,"result":{"structuredContent":{"url":format!("/media/upload-{uploaded}")}}})
+                                )
+                            }
+                        }
+                    } else {
+                        let data = match tool {
+                            "elyum_account" => json!({"credits":100}),
+                            "elyum_estimate" => json!({"credits":6}),
+                            "elyum_make_image" => json!({"jobId":"g_fixture"}),
+                            _ => panic!("unexpected fixture tool: {tool}"),
+                        };
+                        json!({"id":id,"result":{"structuredContent":data}}).to_string()
+                    };
+                    write!(socket, "HTTP/1.1 {status} Fixture\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}", response.len()).unwrap();
+                }
+            });
+            Self {
+                endpoint,
+                requests,
+                stop,
+                thread: Some(thread),
+            }
+        }
+
+        fn client(&self) -> Elyum {
+            Elyum {
+                http: Client::builder()
+                    .no_proxy()
+                    .timeout(Duration::from_secs(3))
+                    .build()
+                    .unwrap(),
+                headers: HeaderMap::new(),
+                counter: 0,
+                initialized: false,
+                test_endpoint: Some(self.endpoint.clone()),
+            }
+        }
+
+        fn tools(&self) -> Vec<Value> {
+            self.requests
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|request| request["method"] == "tools/call")
+                .map(|request| request["params"].clone())
+                .collect()
+        }
+    }
+
+    impl Drop for McpFixture {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::Relaxed);
+            self.thread.take().unwrap().join().unwrap();
+        }
+    }
+
     fn task() -> RemoteTask {
         RemoteTask {
             job_id: "g_abc".into(),
@@ -527,6 +715,113 @@ mod tests {
         assert_eq!(e, "scope");
     }
     #[test]
+    fn payload_rejection_is_not_a_network_error() {
+        assert_eq!(provider_error(None, Some(413)), "upload_too_large");
+        let error = json!({"error":{"status":413,"message":"secret key and prompt"}});
+        for result in [
+            json!({"isError":true,"structuredContent":error}),
+            json!({"isError":true,"content":[{"type":"text","text":error.to_string()}]}),
+        ] {
+            assert_eq!(tool_data(result).unwrap_err(), "upload_too_large");
+        }
+        assert_eq!(
+            provider_error(Some("new_provider_error"), None),
+            "provider_error"
+        );
+    }
+    #[test]
+    fn uploads_photo_and_style_with_matching_types_and_order_before_submit() {
+        let server = McpFixture::new(UploadReply::Success);
+        let task = server
+            .client()
+            .submit(
+                "A test scene",
+                &[
+                    "data:image/jpeg;base64,cGhvdG8=".into(),
+                    "data:image/png;base64,c3R5bGU=".into(),
+                ],
+                "1:1",
+                "1K",
+                false,
+                "fixture-client-ref",
+            )
+            .unwrap();
+        assert_eq!(task.job_id, "g_fixture");
+        let calls = server.tools();
+        assert_eq!(
+            calls
+                .iter()
+                .map(|call| call["name"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "elyum_account",
+                "elyum_estimate",
+                "elyum_upload",
+                "elyum_upload",
+                "elyum_make_image"
+            ]
+        );
+        assert_eq!(calls[2]["arguments"]["mimeType"], "image/jpeg");
+        assert_eq!(calls[2]["arguments"]["filename"], "reference-1.jpg");
+        assert_eq!(calls[2]["arguments"]["base64"], "cGhvdG8=");
+        assert_eq!(calls[3]["arguments"]["filename"], "reference-2.png");
+        assert_eq!(calls[3]["arguments"]["mimeType"], "image/png");
+        assert_eq!(
+            calls[4]["arguments"]["imageUrls"],
+            json!([
+                "https://elyum.ai/media/upload-1",
+                "https://elyum.ai/media/upload-2"
+            ])
+        );
+        assert_eq!(calls[4]["arguments"]["clientRef"], "fixture-client-ref");
+    }
+    #[test]
+    fn upload_failure_stops_before_generation_and_never_retries_writes() {
+        for (reply, expected) in [
+            (UploadReply::TooLarge, "upload_too_large"),
+            (UploadReply::Malformed, "upload_response"),
+            (UploadReply::Disconnect, "upload_failed"),
+        ] {
+            let server = McpFixture::new(reply);
+            let error = server
+                .client()
+                .submit(
+                    "A test scene",
+                    &["data:image/jpeg;base64,cGhvdG8=".into()],
+                    "1:1",
+                    "1K",
+                    false,
+                    "fixture-client-ref",
+                )
+                .unwrap_err();
+            assert_eq!(error, expected);
+            let calls = server.tools();
+            assert_eq!(
+                calls
+                    .iter()
+                    .map(|call| call["name"].as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                ["elyum_account", "elyum_estimate", "elyum_upload"]
+            );
+        }
+    }
+    #[test]
+    fn oversized_json_is_blocked_before_any_upload_is_sent() {
+        let server = McpFixture::new(UploadReply::Success);
+        let mut client = server.client();
+        client.initialized = true;
+        assert_eq!(
+            client
+                .upload_reference(
+                    &format!("data:image/png;base64,{}", "A".repeat(MAX_MCP_BODY_BYTES)),
+                    1
+                )
+                .unwrap_err(),
+            "upload_too_large"
+        );
+        assert!(server.requests.lock().unwrap().is_empty());
+    }
+    #[test]
     fn locked_is_default_and_never_implies_payment() {
         let result = json!({"status":"done","genId":"g_abc","model":"nano-banana-2-1-edit","outputs":[{"url":"/media/test","credits":6}]});
         let preview = parse_task(&result, &task()).unwrap();
@@ -556,5 +851,26 @@ mod tests {
     fn live_account_read_only() {
         let account = Elyum::new().unwrap().account().unwrap();
         assert!(account.is_object());
+    }
+    #[test]
+    #[ignore = "Requires an Elyum key; uploads one synthetic image, no generation or spending"]
+    fn live_upload_prepared_photo() {
+        let mut seed = 81u32;
+        let image = image::RgbImage::from_fn(1600, 1200, |_, _| {
+            image::Rgb(std::array::from_fn(|_| {
+                seed ^= seed << 13;
+                seed ^= seed >> 17;
+                seed ^= seed << 5;
+                seed as u8
+            }))
+        });
+        let png = imaging::png_bytes(&image::DynamicImage::ImageRgb8(image)).unwrap();
+        let prepared = imaging::prepare_elyum_bytes(&png).unwrap();
+        assert!(prepared.starts_with("data:image/jpeg;base64,"));
+        let url = Elyum::new()
+            .unwrap()
+            .upload_reference(&prepared, 1)
+            .unwrap();
+        assert!(url.starts_with("https://"));
     }
 }

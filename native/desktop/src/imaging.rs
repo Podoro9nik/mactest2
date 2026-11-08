@@ -6,6 +6,9 @@ use image::{
 use std::io::Cursor;
 
 pub const MAX_BYTES: usize = 35 * 1024 * 1024;
+// Elyum rejects JSON request bodies over 4 MiB. Leave room for base64's
+// 4/3 expansion and the JSON-RPC envelope, not just the compressed file.
+pub const MAX_ELYUM_IMAGE_BYTES: usize = 2_900_000;
 
 pub fn decode(bytes: &[u8]) -> AppResult<DynamicImage> {
     if bytes.is_empty() || bytes.len() > MAX_BYTES {
@@ -80,6 +83,48 @@ pub fn prepare(value: &str) -> AppResult<String> {
 }
 
 pub fn prepare_bytes(bytes: &[u8]) -> AppResult<String> {
+    let image = normalized_image(bytes)?;
+    let bytes = png_bytes(&image)?;
+    if bytes.len() > 20 * 1024 * 1024 {
+        return Err("image_too_large".into());
+    }
+    Ok(data_url(&bytes))
+}
+
+pub fn prepare_elyum(value: &str) -> AppResult<String> {
+    prepare_elyum_bytes(&data_bytes(value)?)
+}
+
+pub fn prepare_elyum_bytes(bytes: &[u8]) -> AppResult<String> {
+    // Cap again after the minimum-size upscale for exceptionally narrow inputs.
+    let mut image = normalized_image(bytes)?.thumbnail(2048, 2048);
+    let lossless = png_bytes(&image)?;
+    if lossless.len() <= MAX_ELYUM_IMAGE_BYTES {
+        return Ok(data_url(&lossless));
+    }
+    loop {
+        for quality in [92, 85] {
+            let mut encoded = Vec::new();
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut encoded, quality)
+                .encode_image(&image)
+                .map_err(|_| "image_invalid")?;
+            if encoded.len() <= MAX_ELYUM_IMAGE_BYTES {
+                return Ok(format!(
+                    "data:image/jpeg;base64,{}",
+                    STANDARD.encode(encoded)
+                ));
+            }
+        }
+        let (w, h) = image.dimensions();
+        let (next_w, next_h) = (w * 3 / 4, h * 3 / 4);
+        if next_w.min(next_h) < 64 {
+            return Err("image_too_large".into());
+        }
+        image = image.resize(next_w, next_h, image::imageops::FilterType::Lanczos3);
+    }
+}
+
+fn normalized_image(bytes: &[u8]) -> AppResult<DynamicImage> {
     let image = decode(bytes)?;
     let mut image = DynamicImage::ImageRgb8(rgb_on_white(&image)).thumbnail(2048, 2048);
     let (w, h) = image.dimensions();
@@ -94,11 +139,7 @@ pub fn prepare_bytes(bytes: &[u8]) -> AppResult<String> {
             image::imageops::FilterType::Lanczos3,
         );
     }
-    let bytes = png_bytes(&image)?;
-    if bytes.len() > 20 * 1024 * 1024 {
-        return Err("image_too_large".into());
-    }
-    Ok(data_url(&bytes))
+    Ok(image)
 }
 
 /// Edge-aware median and an undithered palette flatten low-contrast speckle.
@@ -189,6 +230,43 @@ mod tests {
         assert!(data_bytes("file:///secret").is_err());
         assert!(decode(b"<svg></svg>").is_err());
         assert!(data_bytes("data:image/svg+xml;base64,AA==").is_err());
+    }
+    #[test]
+    fn elyum_upload_fits_json_body_limit_for_a_noisy_photo() {
+        // A high-entropy photograph is the worst case for the old PNG path.
+        let mut noise = 0x9e3779b9u32;
+        let image = RgbImage::from_fn(2048, 2048, |_, _| {
+            Rgb(std::array::from_fn(|_| {
+                noise ^= noise << 13;
+                noise ^= noise >> 17;
+                noise ^= noise << 5;
+                noise as u8
+            }))
+        });
+        let source = png_bytes(&DynamicImage::ImageRgb8(image)).unwrap();
+        assert!(source.len() > 4 * 1024 * 1024);
+        let prepared = prepare_elyum_bytes(&source).unwrap();
+        assert!(prepared.starts_with("data:image/jpeg;base64,"));
+        let bytes = data_bytes(&prepared).unwrap();
+        assert!(bytes.len() <= MAX_ELYUM_IMAGE_BYTES);
+        assert_eq!(image::guess_format(&bytes).unwrap(), ImageFormat::Jpeg);
+        let decoded = decode(&bytes).unwrap();
+        assert!(decoded.width() <= 2048 && decoded.height() <= 2048);
+        assert_eq!(decoded.width(), decoded.height());
+        let body = serde_json::json!({"jsonrpc":"2.0","id":u64::MAX,"method":"tools/call","params":{"name":"elyum_upload","arguments":{"base64":prepared.split_once(',').unwrap().1,"mimeType":"image/jpeg","filename":"reference-10.jpg"}}});
+        assert!(serde_json::to_vec(&body).unwrap().len() < 4 * 1024 * 1024);
+        // Codex keeps its lossless path and is not constrained by Elyum's body cap.
+        let codex = prepare_bytes(&source).unwrap();
+        assert!(codex.starts_with("data:image/png;base64,"));
+        assert!(data_bytes(&codex).unwrap().len() > MAX_ELYUM_IMAGE_BYTES);
+    }
+    #[test]
+    fn elyum_small_art_stays_lossless_and_transparency_is_white() {
+        let source = png_bytes(&DynamicImage::new_rgba8(256, 256)).unwrap();
+        let prepared = prepare_elyum_bytes(&source).unwrap();
+        assert!(prepared.starts_with("data:image/png;base64,"));
+        let image = decode(&data_bytes(&prepared).unwrap()).unwrap().to_rgb8();
+        assert_eq!(image.get_pixel(0, 0).0, [255, 255, 255]);
     }
     #[test]
     fn clean_art_preserves_ink_and_reduces_speckles() {

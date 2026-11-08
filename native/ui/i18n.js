@@ -34,6 +34,11 @@ const messages = {
   loading:['Загружаем…','Loading…','読み込み中…'], removePhoto:['Удалить фото {number}','Remove photo {number}','写真{number}を削除'], resultAlt:['Созданный рисунок','Generated drawing','生成された作品'], photoAlt:['Исходное фото {number}','Source photo {number}','元の写真{number}'],
   errorGeneric:['Не удалось выполнить действие. Проверьте подключение и обновите статус задачи.','The action could not be completed. Check your connection and refresh the task status.','操作を完了できませんでした。接続を確認し、タスクの状態を更新してください。'],
   error_network:['Нет ответа от сервиса. Проверьте интернет и обновите статус.','No response from the service. Check your internet and refresh the status.','サービスから応答がありません。接続を確認して状態を更新してください。'],
+  error_provider_error:['Elyum вернул ошибку при выполнении запроса. Если задача уже создана, обновите её статус.','Elyum returned an error while handling the request. If a task was already created, refresh its status.','Elyumがリクエストの処理中にエラーを返しました。タスクが作成済みの場合は、状態を更新してください。'],
+  error_provider_response:['Не удалось прочитать ответ Elyum. Если задача уже создана, обновите её статус.','The app could not read Elyum’s response. If a task was already created, refresh its status.','Elyumからの応答を読み取れませんでした。タスクが作成済みの場合は、状態を更新してください。'],
+  error_upload_too_large:['Elyum отклонил фото или референс из-за размера. Генерация не запускалась. Выберите изображение меньшего размера и повторите.','Elyum rejected a photo or reference because it was too large. Generation has not started. Choose a smaller image and try again.','写真または参考画像のサイズが大きすぎるため、Elyumが受け付けませんでした。生成は開始されていません。小さい画像を選んで、もう一度お試しください。'],
+  error_upload_failed:['Не удалось завершить загрузку фото или референса в Elyum. Генерация не запускалась. Проверьте подключение и нажмите «Нарисовать» снова.','The photo or reference upload to Elyum did not finish. Generation has not started. Check your connection and select Draw it again.','写真または参考画像のElyumへのアップロードを完了できませんでした。生成は開始されていません。接続を確認して、もう一度「描いてみる」を押してください。'],
+  error_upload_response:['Не удалось прочитать ответ Elyum на загрузку фото или референса. Генерация не запускалась. Нажмите «Нарисовать» снова.','The app could not read Elyum’s response to the photo or reference upload. Generation has not started. Select Draw it again.','写真または参考画像のアップロードに対するElyumの応答を読み取れませんでした。生成は開始されていません。もう一度「描いてみる」を押してください。'],
   error_auth:['Ключ Elyum не принят. Проверьте подключение в настройках.','Elyum did not accept the key. Check the connection in Settings.','Elyumがキーを受け付けませんでした。設定で接続を確認してください。'],
   error_insufficient_credits:['Недостаточно кредитов Elyum. Пополните баланс и повторите сохранение.','Not enough Elyum credits. Top up your balance, then try keeping again.','Elyumのクレジットが不足しています。残高を追加してから保存してください。'],
   error_browser_only:['Этот маршрут доступен только в браузере Elyum. Можно явно разрешить платный маршрут в деталях рисунка.','This route is only available in Elyum’s browser. You can allow the credit route in Drawing details.','このルートはElyumのブラウザーでのみ利用できます。描き方の設定でクレジット利用を許可できます。'],
@@ -74,7 +79,7 @@ export function translate(language, key, values = {}) {
 }
 export function errorKey(error) {
   const raw = typeof error === 'string' ? error : error?.code ?? error?.message ?? '';
-  const aliases = { too_many_photos:'photos_limit', image_too_large:'image_invalid', image_too_small:'image_invalid', invalid_job_id:'job_not_found', wrong_model:'invalid_settings', provider_response:'network', provider_error:'network', codex_error:'codex_image_unavailable', renewal_failed:'auth' };
+  const aliases = { too_many_photos:'photos_limit', image_too_large:'image_invalid', image_too_small:'image_invalid', invalid_job_id:'job_not_found', wrong_model:'invalid_settings', codex_error:'codex_image_unavailable', renewal_failed:'auth' };
   let code = String(raw).split(':')[0].trim().toLowerCase();
   code = aliases[code] || code;
   return messages[`error_${code}`] ? `error_${code}` : 'errorGeneric';

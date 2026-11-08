@@ -253,7 +253,7 @@ async function smokeTest() {
 }
 setLanguage(language, false); setView(location.hash.slice(1), false);
 $('demo-banner').hidden = !demo;
-if (demo) { $('output-directory').textContent = 'Demo'; $('app-version').textContent = '3.0.0'; }
+if (demo) { $('output-directory').textContent = 'Demo'; $('app-version').textContent = '3.0.1'; }
 else {
   invoke('app_info').then(async (info) => { $('output-directory').textContent = info.outputDir; $('app-version').textContent = info.version; if (info.smokeTest) { await smokeTest(); return; } await loadHistory(); }).catch((e) => { showError(e); });
 }

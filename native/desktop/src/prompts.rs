@@ -22,6 +22,14 @@ pub fn style_reference_count(character: &str, photo_count: usize, custom: bool) 
 
 pub fn prepare(request: &GenerateRequest) -> AppResult<(String, Vec<String>)> {
     request.validate()?;
+    let (prepare, prepare_bytes): (
+        fn(&str) -> AppResult<String>,
+        fn(&[u8]) -> AppResult<String>,
+    ) = if request.provider == "elyum" {
+        (imaging::prepare_elyum, imaging::prepare_elyum_bytes)
+    } else {
+        (imaging::prepare, imaging::prepare_bytes)
+    };
     let photo_count = if request.mode == "photo" {
         request.photos.len()
     } else {
@@ -30,7 +38,7 @@ pub fn prepare(request: &GenerateRequest) -> AppResult<(String, Vec<String>)> {
     let mut refs = Vec::new();
     if request.mode == "photo" {
         for photo in &request.photos {
-            refs.push(imaging::prepare(photo)?);
+            refs.push(prepare(photo)?);
         }
     }
     let custom = request.custom_reference.as_ref().filter(|s| !s.is_empty());
@@ -49,10 +57,10 @@ pub fn prepare(request: &GenerateRequest) -> AppResult<(String, Vec<String>)> {
         }]
     };
     for bytes in style {
-        refs.push(imaging::prepare_bytes(bytes)?);
+        refs.push(prepare_bytes(bytes)?);
     }
     if let Some(custom) = custom {
-        refs.push(imaging::prepare(custom)?);
+        refs.push(prepare(custom)?);
     }
     Ok((build_prompt(request, count)?, refs))
 }
