@@ -39,6 +39,8 @@ jobs:
           workspaces: native/desktop
       - run: npm ci
         working-directory: native
+      - name: Localized upload error tests
+        run: node --test native/scripts/test-i18n.mjs
       - name: Bundle official Codex CLI
         run: node native/scripts/prepare-codex.mjs
       - name: Backend tests
