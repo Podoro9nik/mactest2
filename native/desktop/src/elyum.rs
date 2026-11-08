@@ -575,6 +575,12 @@ mod tests {
                         }
                         Err(error) => panic!("fixture accept failed: {error}"),
                     };
+                    // Accepted sockets can inherit O_NONBLOCK on macOS.
+                    // Each fixture request is handled synchronously.
+                    socket.set_nonblocking(false).unwrap();
+                    socket
+                        .set_write_timeout(Some(Duration::from_secs(3)))
+                        .unwrap();
                     socket
                         .set_read_timeout(Some(Duration::from_secs(3)))
                         .unwrap();
