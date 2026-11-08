@@ -9,7 +9,7 @@ Frontend calls `window.__TAURI__.core.invoke`. Commands return JSON objects or r
 - `generate({request})` -> Job (submit + return; frontend polls separately). Request: `{provider:'elyum'|'codex', mode:'text'|'photo', description, photos:[dataURL], customReference:dataURL|null, character:'own'|'chiikawa'|'hachiware'|'usagi'|'trio', background:'scene'|'white'|'meadow'|'room'|'sticker', emotion:'scene'|'happy'|'shy'|'tears'|'surprised', strength:50, fullCreature:false, aspectRatio:'1:1', resolution:'2K', creditMode:false, cleanCodex:true}`.
 - `get_job({jobId})` -> Job; polls server once, downloads preview/original when available. Never keeps/charges automatically.
 - `keep_original({jobId, confirmedCost})` -> Job; only user click calls this, passing the displayed price. Refresh status before keep, unknown/changed price guarded, never retry a write automatically. Completed job can retry download without repaying.
-- `restore_job({remoteId})` -> Job; imports an Elyum g_* task ID after an interrupted request. Never purchases a preview.
+- `restore_job({jobId})` -> Job; imports an Elyum g_* task ID after an interrupted request. Never purchases a preview.
 - `list_jobs()` -> Job[] from local persisted state.
 - `export_image({jobId})` -> saved path or null; native save dialog for original or clearly named preview.
 - `codex_account()` -> JSON `{authenticated, plan?}`

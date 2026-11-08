@@ -54,6 +54,17 @@ const messages = {
   error_generation_in_progress:['Эта задача уже обрабатывается. Дождитесь ответа.','This task is already being processed. Please wait.','このタスクは処理中です。しばらくお待ちください。'],
   error_photos_required:['Добавьте хотя бы одну фотографию.','Add at least one photo.','写真を1枚以上追加してください。'], error_photos_limit:['Можно добавить не более 8 фотографий.','You can add up to 8 photos.','追加できる写真は8枚までです。'], error_description_required:['Напишите идею или выберите вариант для вдохновения.','Describe an idea or choose an inspiration prompt.','アイデアを書くか、ヒントから選んでください。'],
   error_native_required:['Откройте установленное приложение для генерации.','Open the installed app to generate images.','画像を生成するにはインストール済みのアプリを開いてください。'],
+  error_keep_uncertain:['Ответ о сохранении не получен. Обновите статус: повторное списание автоматически не выполняется.','The keep response was not received. Refresh the status; no charge is automatically retried.','保存の応答を確認できません。状態を更新してください。クレジットの再使用は自動で行いません。'],
+  error_missing_key:['В этой сборке нет ключа Elyum. Используйте настроенную сборку приложения.','This build has no Elyum key. Use a configured app build.','このビルドにはElyumキーがありません。設定済みのアプリをご使用ください。'],
+  error_rate_limit:['Сервис ограничил частоту запросов. Подождите немного и обновите статус.','The service rate limit was reached. Wait a moment, then refresh the status.','リクエストの上限に達しました。少し待ってから状態を更新してください。'],
+  error_scope:['У ключа Elyum нет прав для этого действия. Проверьте разрешения ключа.','The Elyum key does not have permission for this action. Check its permissions.','Elyumキーにこの操作の権限がありません。キーの権限をご確認ください。'],
+  error_key_cap:['Достигнут лимит расходов ключа Elyum. Проверьте лимит в аккаунте.','The Elyum key spending cap was reached. Check the cap in your account.','Elyumキーの利用上限に達しました。アカウントで上限を確認してください。'],
+  error_maintenance:['Elyum временно недоступен. Обновите статус позже.','Elyum is temporarily unavailable. Refresh the status later.','Elyumは一時的に利用できません。あとで状態を更新してください。'],
+  error_content_refused:['Сервис отклонил этот запрос. Измените описание или фотографии.','The service declined this request. Change the description or photos.','サービスがリクエストを受け付けませんでした。説明や写真を変更してください。'],
+  error_codex_timeout:['Истекло время ожидания Codex. Проверьте вход, доступ к генерации и лимиты подписки.','Codex timed out. Check sign-in, image access and subscription limits.','Codexの待機時間が切れました。ログイン、画像生成の利用可否、上限を確認してください。'],
+  error_login_in_progress:['Вход уже запущен. Завершите его в браузере и проверьте вход.','Sign-in is already in progress. Finish it in your browser, then check sign-in.','ログイン処理中です。ブラウザーで完了してからログインを確認してください。'],
+  error_generation_failed:['Сервис не смог завершить генерацию. Измените запрос или повторите позднее.','The service could not finish generation. Adjust the request or try again later.','サービスが生成を完了できませんでした。内容を変更するか、あとでお試しください。'],
+  trioAlt:['Чиикава, Хачиварэ и Усаги: официальные референсы рисовки','Chiikawa, Hachiware and Usagi: official drawing references','ちいかわ、ハチワレ、うさぎ：公式の参考画像'],
 };
 export const KEYS = Object.keys(messages);
 export function translate(language, key, values = {}) {
@@ -63,6 +74,8 @@ export function translate(language, key, values = {}) {
 }
 export function errorKey(error) {
   const raw = typeof error === 'string' ? error : error?.code ?? error?.message ?? '';
-  const code = String(raw).split(':')[0].trim().toLowerCase();
+  const aliases = { too_many_photos:'photos_limit', image_too_large:'image_invalid', image_too_small:'image_invalid', invalid_job_id:'job_not_found', wrong_model:'invalid_settings', provider_response:'network', provider_error:'network', codex_error:'codex_image_unavailable', renewal_failed:'auth' };
+  let code = String(raw).split(':')[0].trim().toLowerCase();
+  code = aliases[code] || code;
   return messages[`error_${code}`] ? `error_${code}` : 'errorGeneric';
 }

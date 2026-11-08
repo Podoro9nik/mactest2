@@ -541,4 +541,20 @@ mod tests {
         assert!(media_url("http://example.com/picture.png").is_err());
         assert!(parse_task(&json!({"status":"done","model":"other","outputs":[{"url":"https://elyum.ai/media/a"}]}),&task()).is_err());
     }
+    #[test]
+    fn an_estimate_cannot_substitute_for_a_missing_final_price() {
+        let result = json!({"status":"done","genId":"g_abc","outputs":[{"url":"/media/test","locked":true}]});
+        let preview = parse_task(&result, &task()).unwrap();
+        assert_eq!(preview.cost, None);
+        assert_eq!(
+            crate::types::check_keep(&preview, 9.0),
+            Err("unknown_price".into())
+        );
+    }
+    #[test]
+    #[ignore = "Requires an Elyum key; account read only, no generation or spending"]
+    fn live_account_read_only() {
+        let account = Elyum::new().unwrap().account().unwrap();
+        assert!(account.is_object());
+    }
 }

@@ -1,0 +1,18 @@
+note: master contains white paint — check the one-colour files for blobs (fake cut-outs).
+wrote native/design/icon-variants\icon-black.svg
+wrote native/design/icon-variants\icon-white.svg
+wrote native/design/icon-variants\icon-mono-433a37.svg
+wrote native/design/icon-variants\icon-square.svg
+wrote native/design/icon-variants\icon-favicon.svg
+wrote native/design/icon-variants\icon-app-icon.svg
+wrote native/design/icon-variants\favicon-16.png
+wrote native/design/icon-variants\favicon-32.png
+wrote native/design/icon-variants\favicon-48.png
+wrote native/design/icon-variants\apple-touch-icon.png
+wrote native/design/icon-variants\icon-192.png
+wrote native/design/icon-variants\icon-512.png
+wrote native/design/icon-variants\maskable-512.png
+wrote native/design/icon-variants\favicon.ico
+wrote native/design/icon-variants\favicon.svg
+wrote native/design/icon-variants\site.webmanifest
+wrote native/design/icon-variants\head-snippet.html

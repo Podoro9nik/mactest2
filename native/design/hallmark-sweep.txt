@@ -1,2 +1,2 @@
+render tier: 5 screenshots in C:\Users\Andrey\Documents\ChatGPT\Chiikawizator\.hallmark\shots (1280x800, 1440x900, 1920x1080 folds; 1440 and 375 full pages)
 sloplint: clean. 0 FAIL, 0 REFLEX, 0 WARN across 4 file(s) and 1 URL(s).
-render tier not run: no Chrome or Chromium found; set CHROME_PATH

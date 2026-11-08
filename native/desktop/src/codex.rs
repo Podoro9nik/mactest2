@@ -327,3 +327,19 @@ impl Drop for Session {
         let _ = self.child.wait();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    #[ignore = "Requires the bundled Codex executable; reads account only"]
+    fn bundled_codex_account_read_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let resources = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let account = Session::start(resources, dir.path())
+            .unwrap()
+            .account()
+            .unwrap();
+        assert!(account["authenticated"].is_boolean());
+    }
+}

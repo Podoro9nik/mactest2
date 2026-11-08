@@ -33,6 +33,7 @@ export function setLanguage(value, persist = true) {
   document.querySelector('.mode-tabs').setAttribute('aria-label', t('mode'));
   $('description').placeholder = t('promptPlaceholder');
   $('result-image').alt = t('resultAlt');
+  document.querySelector('#result-empty img').alt = t('trioAlt');
   const ideas = $('idea-buttons'); ideas.replaceChildren();
   for (let i = 1; i <= 3; i++) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = t(`idea${i}`);
@@ -82,7 +83,7 @@ function readPhoto(file) {
 }
 async function addPhotos(files) {
   if (photos.length + files.length > 8) { showError('photos_limit'); return; }
-  try { const added = await Promise.all([...files].map(readPhoto)); photos.push(...added); renderPhotos(); message('form-error', null); }
+  try { const added = await Promise.all([...files].map(readPhoto)); if (photos.length + added.length > 8) throw 'photos_limit'; photos.push(...added); renderPhotos(); message('form-error', null); }
   catch (e) { showError(e); }
   $('photos').value = '';
 }
@@ -223,8 +224,8 @@ $('photos').addEventListener('change', (e) => addPhotos(e.target.files));
 for (const event of ['dragenter', 'dragover']) $('photo-drop').addEventListener(event, (e) => { e.preventDefault(); $('photo-drop').classList.add('dragging'); });
 for (const event of ['dragleave', 'drop']) $('photo-drop').addEventListener(event, (e) => { e.preventDefault(); $('photo-drop').classList.remove('dragging'); });
 $('photo-drop').addEventListener('drop', (e) => addPhotos(e.dataTransfer.files));
-$('customReference').addEventListener('change', async (e) => { try { reference = e.target.files.length ? await readPhoto(e.target.files[0]) : null; $('remove-reference').hidden = !reference; } catch (err) { reference = null; e.target.value = ''; showError(err); } });
-$('remove-reference').addEventListener('click', () => { reference = null; $('customReference').value = ''; $('remove-reference').hidden = true; });
+$('customReference').addEventListener('change', async (e) => { try { reference = e.target.files.length ? await readPhoto(e.target.files[0]) : null; $('remove-reference').hidden = !reference; $('reference-name').textContent = reference?.name || ''; $('reference-name').hidden = !reference; } catch (err) { reference = null; e.target.value = ''; $('remove-reference').hidden = true; $('reference-name').hidden = true; showError(err); } });
+$('remove-reference').addEventListener('click', () => { reference = null; $('customReference').value = ''; $('remove-reference').hidden = true; $('reference-name').hidden = true; });
 $('create-form').addEventListener('submit', generate);
 $('result-image').addEventListener('load', renderJob);
 $('result-image').addEventListener('error', () => { $('keep').disabled = true; showError('download_failed', 'result-message'); });

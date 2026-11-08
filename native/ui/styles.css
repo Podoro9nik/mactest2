@@ -1,5 +1,6 @@
 /* Hallmark · shape: app screen · genre: playful · theme: Chiikawa (by request) · brand: Chiikawa (spec 2026-11-08) · paper: warm cream · accent: berry pink · display: ChiikawaKawaii · body: system sans · nav: compact top bar · signature: preview and priced Keep decision · states: loading, empty, error, full · axes: light/handwritten/warm · posture: Restrained · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4 · weakest: R, removed decorative stickers so official references and the result lead. */
+/* Hallmark · finish-review: subagent · 2 findings · 2 resolved · gap: none · narrow selects stacked; runtime accessible names localized. */
 @import url('./tokens.css');
 @import url('./base.css');
 @font-face { font-family: 'ChiikawaKawaii'; src: url('assets/ChiikawaKawaii-Regular.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
@@ -139,3 +140,5 @@ dialog .helper { margin-top: var(--space-sm); }
 @media (max-width: 1050px) { :root { --gutter: 24px; --gap-columns: 24px; } .topbar { flex-wrap: wrap; gap: var(--space-sm); } .main-nav { order: 3; width: 100%; margin-left: 0; } .language-control { margin-left: auto; } .result-stage { min-height: 360px; } .result-empty { padding: var(--space-lg); } .keep-area { flex-direction: column; align-items: stretch; } }
 @media (max-width: 720px) { :root { --gutter: 16px; } .workbench { grid-template-columns: minmax(0,1fr); } .brand { font-size: var(--text-xl); } .brand img { width: 40px; height: 40px; } .main-nav { justify-content: space-between; gap: 0; } .main-nav button { padding-inline: var(--space-sm); } .result-pane { padding-top: var(--space-lg); border-top: 1px solid var(--color-rule); } .history-list { grid-template-columns: repeat(2,minmax(0,1fr)); } .settings-row { grid-template-columns: minmax(0,1fr); gap: var(--space-md); } .view-heading { align-items: flex-start; flex-direction: column; gap: var(--space-md); } input, select, textarea, button { font-size: var(--text-md); } .mode-tabs { gap: var(--space-sm); } .mode-tabs button { font-size: var(--text-sm); } .language-control select { min-width: 96px; width: 96px; } footer { flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 440px) { .controls > .two-fields { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 720px) { .language-control select { width: 116px; min-width: 116px; } }

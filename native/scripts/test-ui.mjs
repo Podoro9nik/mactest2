@@ -40,6 +40,10 @@ await page.addInitScript(({image})=>{
     if(command==='keep_original') {
       const job=jobs.find(j=>j.id===args.jobId); Object.assign(job,{status:'completed',imageUrl:image}); return {...job};
     }
+    if(command==='restore_job') {
+      const job={id:'restored',provider:'elyum',status:'preview',imageUrl:image,cost:9,createdAt:new Date().toISOString(),remoteId:args.jobId};
+      jobs.unshift(job);return job;
+    }
     if(command==='export_image') return '/test/result.png';
     if(command==='codex_login') return {message:'Sign in started'};
     throw new Error('Unexpected command '+command);
@@ -86,9 +90,17 @@ try {
   expect(await page.evaluate(()=>window.testCalls.filter(c=>c.command==='keep_original').length)).toBe(1);
   report.checks.push('Only confirmation of displayed price purchases original');
   await page.locator('#provider').selectOption('codex');await page.locator('#generate').click();
+  await page.waitForFunction(()=>window.testCalls.some(c=>c.command==='get_job'&&c.args.jobId==='local-2'));
   await expect(page.locator('#result-image')).toBeVisible({timeout:20000});
   await expect(page.locator('#keep-area')).toBeHidden();
   report.checks.push('Codex result displays without Elyum purchase controls');
+  await page.locator('nav [data-view=history]').click();
+  await page.locator('.restore summary').click();
+  await page.locator('#restore-id').fill('g_abcdef');
+  await page.locator('#restore-form button').click();
+  await expect(page.locator('#keep')).toBeVisible();
+  expect(await page.evaluate(()=>window.testCalls.filter(c=>c.command==='keep_original').length)).toBe(1);
+  report.checks.push('Remote job recovery displays preview without paying');
   await page.locator('#language').selectOption('ja');await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang','ja');
   report.checks.push('Language persists on restart');

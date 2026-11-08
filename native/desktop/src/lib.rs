@@ -264,38 +264,86 @@ async fn keep_original(
             return Err("invalid_settings".into());
         }
         let mut client = elyum::Elyum::new()?;
-        let refreshed = client.status(record.remote.as_ref().ok_or("preview_not_ready")?)?;
-        store::apply_remote(&mut record, refreshed.clone());
-        store.save(&record)?;
-        // Compare against the exact price shown in the user's confirmation dialog.
-        if types::check_keep(&refreshed, confirmed_cost)? {
-            if record.downloaded_status.as_deref() != Some("preview")
-                || record.job.image_path.is_none()
-            {
-                return Err("preview_not_ready".into());
-            }
-            let kept = match client.keep(&refreshed, confirmed_cost) {
-                Ok(t) => t,
-                Err(e) => {
-                    record.job.error = Some(e.clone());
-                    store.save(&record)?;
-                    return Err(e);
-                }
-            };
-            store::apply_remote(&mut record, kept);
-            store.save(&record)?;
-        }
-        if record.job.status != "completed" {
-            return Err("preview_not_ready".into());
-        }
-        if let Err(error) = download_ready(&store, &mut record) {
-            record.job.error = Some(error.clone());
-            store.save(&record)?;
-            return Err(error);
-        }
-        store.public(&record)
+        confirm_original(&store, &mut record, &mut client, confirmed_cost)
     })
     .await
+}
+
+trait OriginalProvider {
+    fn refresh(&mut self, task: &RemoteTask) -> AppResult<RemoteTask>;
+    fn keep(&mut self, task: &RemoteTask, cost: f64) -> AppResult<RemoteTask>;
+    fn download(&mut self, url: &str) -> AppResult<Vec<u8>>;
+}
+
+impl OriginalProvider for elyum::Elyum {
+    fn refresh(&mut self, task: &RemoteTask) -> AppResult<RemoteTask> {
+        self.status(task)
+    }
+    fn keep(&mut self, task: &RemoteTask, cost: f64) -> AppResult<RemoteTask> {
+        elyum::Elyum::keep(self, task, cost)
+    }
+    fn download(&mut self, url: &str) -> AppResult<Vec<u8>> {
+        elyum::download(url)
+    }
+}
+
+fn confirm_original(
+    store: &store::Store,
+    record: &mut Record,
+    provider: &mut impl OriginalProvider,
+    confirmed_cost: f64,
+) -> AppResult<Job> {
+    let refreshed = provider.refresh(record.remote.as_ref().ok_or("preview_not_ready")?)?;
+    store::apply_remote(record, refreshed.clone());
+    store.save(record)?;
+    // Compare against the exact price shown in the user's confirmation dialog.
+    if types::check_keep(&refreshed, confirmed_cost)? {
+        if record.downloaded_status.as_deref() != Some("preview")
+            || record
+                .job
+                .image_path
+                .as_ref()
+                .is_none_or(|p| store.image_path(p).is_err())
+        {
+            return Err("preview_not_ready".into());
+        }
+        let kept = match provider.keep(&refreshed, confirmed_cost) {
+            Ok(t) => t,
+            Err(e) => {
+                record.job.error = Some(e.clone());
+                store.save(record)?;
+                return Err(e);
+            }
+        };
+        store::apply_remote(record, kept);
+        // This durable state must precede the download, even when saving the PNG fails.
+        store.save(record)?;
+    }
+    if record.job.status != "completed" {
+        return Err("preview_not_ready".into());
+    }
+    if record.downloaded_status.as_deref() != Some("completed")
+        || record
+            .job
+            .image_path
+            .as_ref()
+            .is_none_or(|p| store.image_path(p).is_err())
+    {
+        let url = record
+            .remote
+            .as_ref()
+            .and_then(|r| r.url.as_deref())
+            .ok_or("download_failed")?;
+        match provider.download(url) {
+            Ok(bytes) => store.save_image(record, &bytes, "completed")?,
+            Err(error) => {
+                record.job.error = Some(error.clone());
+                store.save(record)?;
+                return Err(error);
+            }
+        }
+    }
+    store.public(record)
 }
 
 #[tauri::command]
@@ -456,4 +504,154 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("Unable to start Chiikawizator");
+}
+
+#[cfg(test)]
+mod payment_tests {
+    use super::*;
+    struct FakeProvider {
+        paid: bool,
+        cost: f64,
+        keep_calls: usize,
+        lose_keep_response: bool,
+        download_fails: bool,
+    }
+    impl FakeProvider {
+        fn new() -> Self {
+            Self {
+                paid: false,
+                cost: 6.0,
+                keep_calls: 0,
+                lose_keep_response: false,
+                download_fails: false,
+            }
+        }
+        fn task(&self) -> RemoteTask {
+            RemoteTask {
+                job_id: "g_abcdef".into(),
+                gen_id: Some("g_abcdef".into()),
+                status: if self.paid { "completed" } else { "preview" }.into(),
+                url: Some("https://elyum.ai/media/test.png".into()),
+                cost: Some(self.cost),
+            }
+        }
+    }
+    fn png() -> Vec<u8> {
+        imaging::png_bytes(&image::DynamicImage::new_rgb8(256, 256)).unwrap()
+    }
+    impl OriginalProvider for FakeProvider {
+        fn refresh(&mut self, _: &RemoteTask) -> AppResult<RemoteTask> {
+            Ok(self.task())
+        }
+        fn keep(&mut self, _: &RemoteTask, _: f64) -> AppResult<RemoteTask> {
+            assert!(!self.paid, "Never issue a second paid Keep");
+            self.keep_calls += 1;
+            self.paid = true;
+            if self.lose_keep_response {
+                self.lose_keep_response = false;
+                return Err("keep_uncertain".into());
+            }
+            Ok(self.task())
+        }
+        fn download(&mut self, _: &str) -> AppResult<Vec<u8>> {
+            if self.download_fails {
+                Err("download_failed".into())
+            } else {
+                Ok(png())
+            }
+        }
+    }
+    fn preview(store: &store::Store, provider: &FakeProvider) -> Record {
+        let mut record = new_record("elyum", "test");
+        store::apply_remote(&mut record, provider.task());
+        store.save_image(&mut record, &png(), "preview").unwrap();
+        record
+    }
+    #[test]
+    fn double_confirmation_only_pays_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut provider = FakeProvider::new();
+        let mut record = preview(&store, &provider);
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0)
+                .unwrap()
+                .status,
+            "completed"
+        );
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0)
+                .unwrap()
+                .status,
+            "completed"
+        );
+        assert_eq!(provider.keep_calls, 1);
+    }
+    #[test]
+    fn lost_keep_response_is_recovered_without_second_payment() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut provider = FakeProvider::new();
+        let mut record = preview(&store, &provider);
+        provider.lose_keep_response = true;
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0).unwrap_err(),
+            "keep_uncertain"
+        );
+        let mut restored = store.read(&record.job.id).unwrap();
+        assert_eq!(
+            confirm_original(&store, &mut restored, &mut provider, 6.0)
+                .unwrap()
+                .status,
+            "completed"
+        );
+        assert_eq!(provider.keep_calls, 1);
+    }
+    #[test]
+    fn failed_download_leaves_unlock_durable_across_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut provider = FakeProvider::new();
+        let mut record = preview(&store, &provider);
+        provider.download_fails = true;
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0).unwrap_err(),
+            "download_failed"
+        );
+        let reopened = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut restored = reopened.read(&record.job.id).unwrap();
+        assert_eq!(restored.job.status, "completed");
+        assert!(restored.job.image_path.is_none());
+        provider.download_fails = false;
+        let result = confirm_original(&reopened, &mut restored, &mut provider, 6.0).unwrap();
+        assert!(result.image_url.is_some());
+        assert_eq!(provider.keep_calls, 1);
+    }
+    #[test]
+    fn changed_price_is_saved_and_requires_new_confirmation() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut provider = FakeProvider::new();
+        let mut record = preview(&store, &provider);
+        provider.cost = 9.0;
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0).unwrap_err(),
+            "price_changed"
+        );
+        assert_eq!(store.read(&record.job.id).unwrap().job.cost, Some(9.0));
+        assert_eq!(provider.keep_calls, 0);
+    }
+    #[test]
+    fn preview_must_be_available_before_keep() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store::Store::open(dir.path().into(), dir.path().into()).unwrap();
+        let mut provider = FakeProvider::new();
+        let mut record = preview(&store, &provider);
+        record.job.image_path = None;
+        assert_eq!(
+            confirm_original(&store, &mut record, &mut provider, 6.0).unwrap_err(),
+            "preview_not_ready"
+        );
+        assert_eq!(provider.keep_calls, 0);
+    }
 }
