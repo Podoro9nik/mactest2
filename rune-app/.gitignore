@@ -1,0 +1,9 @@
+/vendor/
+/target/
+/dist/
+/verification/
+/encrypted-artifacts/
+/build/
+*.log
+.env
+*.secret.*

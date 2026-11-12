@@ -1,0 +1,45 @@
+[package]
+name = "chiikawizator-rune"
+version = "4.0.0"
+edition = "2024"
+rust-version = "1.99"
+description = "Chiikawizator native illustration studio"
+license = "MIT"
+
+[workspace]
+exclude = ["vendor/rune", "vendor/rune/crates/*", "vendor/rune/vendor/*"]
+
+[dependencies]
+rune = { path = "vendor/rune/crates/rune", default-features = false, features = ["accessibility", "native-file-dialog", "metal-backend"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls-native-roots"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+url = "2"
+tempfile = "3"
+fs2 = "0.4"
+directories = "6"
+
+[build-dependencies]
+winresource = "0.1"
+
+[patch.crates-io]
+winit = { path = "vendor/rune/vendor/winit" }
+wgpu-hal = { path = "vendor/rune/vendor/wgpu-hal" }
+parley_engine = { path = "vendor/rune/vendor/parley_engine" }
+accesskit_windows = { path = "vendor/rune/vendor/accesskit_windows" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+opt-level = 2
+codegen-units = 16
+incremental = true
+strip = true

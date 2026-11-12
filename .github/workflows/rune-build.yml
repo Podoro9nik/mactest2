@@ -1,0 +1,123 @@
+name: Rune desktop apps
+
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['rune-app/**', '.github/workflows/rune-build.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS ${{ matrix.arch }} Rune DMG
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      CHIIKAWA_EMBEDDED_MCP_KEY: ${{ secrets.CHIIKAWA_EMBEDDED_MCP_KEY }}
+      CHIIKAWIZATOR_OFFLINE: '1'
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out pinned Rune framework
+        uses: actions/checkout@v4
+        with:
+          repository: anomalyco/rune
+          ref: ea6ddf8f2c3cd476a3797caad7d77cbe04641d9c
+          path: rune-app/vendor/rune
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require personal build key
+        shell: bash
+        run: test -n "$CHIIKAWA_EMBEDDED_MCP_KEY" || { echo 'Set the CHIIKAWA_EMBEDDED_MCP_KEY Actions secret.'; exit 1; }
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal --no-self-update
+      - name: Verify artifact encryption and source staging
+        run: node --test rune-app/scripts/artifact-crypto.test.mjs rune-app/scripts/stage-source.test.mjs
+      # Do not cache target/: its objects contain the embedded personal credential.
+      - name: Test, build, verify GUI and package DMG
+        run: bash rune-app/scripts/build-macos.sh
+      - name: Encrypt personal DMG
+        shell: bash
+        run: |
+          mkdir -p rune-app/encrypted-artifacts
+          for image in rune-app/dist/*.dmg; do
+            node rune-app/scripts/artifact-crypto.mjs encrypt "$image" "rune-app/encrypted-artifacts/$(basename "$image").enc"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chiikawizator-Rune-macOS-${{ matrix.arch }}
+          path: |
+            rune-app/encrypted-artifacts/*.enc
+            rune-app/verification/macos-${{ matrix.arch }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Windows x64 Rune installer
+    runs-on: windows-2025
+    timeout-minutes: 90
+    env:
+      CHIIKAWA_EMBEDDED_MCP_KEY: ${{ secrets.CHIIKAWA_EMBEDDED_MCP_KEY }}
+      CHIIKAWIZATOR_OFFLINE: '1'
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out pinned Rune framework
+        uses: actions/checkout@v4
+        with:
+          repository: anomalyco/rune
+          ref: ea6ddf8f2c3cd476a3797caad7d77cbe04641d9c
+          path: rune-app/vendor/rune
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require personal build key
+        shell: pwsh
+        run: |
+          if (-not $env:CHIIKAWA_EMBEDDED_MCP_KEY) { throw 'Set the CHIIKAWA_EMBEDDED_MCP_KEY Actions secret.' }
+      - name: Install build tools
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --no-self-update
+          if ($LASTEXITCODE -ne 0) { throw 'Rust installation failed.' }
+          choco install nsis --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed.' }
+      - name: Test, build, verify GUI and package installer
+        shell: pwsh
+        run: ./rune-app/scripts/build-windows.ps1
+      - name: Encrypt personal installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path rune-app/encrypted-artifacts | Out-Null
+          Get-ChildItem -LiteralPath rune-app/dist -Filter '*-setup.exe' | ForEach-Object {
+            node rune-app/scripts/artifact-crypto.mjs encrypt $_.FullName "rune-app/encrypted-artifacts/$($_.Name).enc"
+            if ($LASTEXITCODE -ne 0) { throw 'Installer encryption failed.' }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chiikawizator-Rune-Windows-x64
+          path: |
+            rune-app/encrypted-artifacts/*.enc
+            rune-app/verification/windows/
+          if-no-files-found: error
+          retention-days: 7

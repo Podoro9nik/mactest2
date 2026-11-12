@@ -1,0 +1,17 @@
+{
+  "originalFamily": "Chiikawa Kawaii",
+  "originalGlyphs": 177,
+  "japaneseFamily": "Chiikawa Kawaii JP",
+  "japaneseMappedCharacters": 8039,
+  "recommendedFamilyList": "Chiikawa Kawaii, Chiikawa Kawaii JP",
+  "source": "https://github.com/google/fonts/tree/main/ofl/yomogi",
+  "sourceSha256": "ec280f473a03187292905618f24fdb08a6dcbf8620b52637e3b589fe745259b9",
+  "japaneseLicense": "SIL Open Font License 1.1",
+  "japaneseSha256": "f473eaafb5215bc3aac603678f275ebd7609c3be8adf38a6398a2ae78553977a",
+  "japaneseBytes": 6090620,
+  "hiragana": 91,
+  "katakana": 96,
+  "cjkUnifiedIdeographs": 6684,
+  "missingFromJapaneseSample": [],
+  "scope": "Renamed Japanese companion; supplied Latin/Cyrillic font is unchanged and takes priority in family cascade."
+}

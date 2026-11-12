@@ -1,0 +1,8 @@
+[build]
+jobs = 2
+
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "linker-flavor=ld64.lld"]
+
+[target.'cfg(all(target_os = "windows", target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
