@@ -472,7 +472,7 @@ fn result(state: &State) -> El {
                 .child(
                     label(l.text("ready_hint"), 25.0)
                         .w_full()
-                        .wrap()
+                        .wrap_anywhere()
                         .align(Align::Center),
                 )
                 .child(para(l.text("ready_help")).align(Align::Center)),

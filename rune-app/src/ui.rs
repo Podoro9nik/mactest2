@@ -33,7 +33,7 @@ fn label(value: impl Into<String>, size: f32) -> El {
     text(value).font(TextStyle::new(size, 400.0)).color(ink())
 }
 fn para(value: impl Into<String>) -> El {
-    label(value, 22.0).w_full().wrap().color(muted())
+    label(value, 22.0).w_full().wrap_anywhere().color(muted())
 }
 fn heading(value: &str) -> El {
     label(value, 28.0).w_full().wrap()
