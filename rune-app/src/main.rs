@@ -58,9 +58,16 @@ fn main() {
             .as_ref()
             .map_err(|_| "storage_error".to_string())
             .and_then(|dir| backend::Engine::new(dir.path().to_path_buf()))
-            .and_then(|engine| engine.quote(&backend::GenerateRequest::default()));
+            .and_then(|engine| {
+                let quote = engine.quote(&backend::GenerateRequest::default())?;
+                let balance = engine.balance()?;
+                Ok((quote, balance))
+            });
         match result {
-            Ok(quote) => println!("{}", serde_json::json!({"ok":true,"credits":quote.credits})),
+            Ok((quote, balance)) => println!(
+                "{}",
+                serde_json::json!({"ok":true,"credits":quote.credits,"balance":balance})
+            ),
             Err(code) => {
                 println!("{}", serde_json::json!({"ok":false,"error":code}));
                 std::process::exit(1);
@@ -68,9 +75,24 @@ fn main() {
         }
         return;
     }
-    let app = App::new(spec()).tab_visits_controls(true);
+    let native_smoke = std::env::var_os("CHIIKAWIZATOR_OFFLINE").is_some()
+        && std::env::args().any(|arg| arg == "--native");
+    let mut app = App::new(spec()).tab_visits_controls(true);
     let handle = app.handle();
+    if native_smoke {
+        // A directly spawned bundle executable does not receive Launch Services'
+        // foreground activation. Count real, visible frames in CI as in a user launch.
+        handle.open();
+        app = app.on_frame_encoded(|frame| {
+            if frame.seq() < 20 {
+                eprintln!("native-smoke frame {} {:?}", frame.seq(), frame.outcome());
+            }
+        });
+    }
     app.on_ready(move |_| {
+        if native_smoke {
+            handle.focus();
+        }
         handle.update(|state, _| state.start());
     })
     .run();

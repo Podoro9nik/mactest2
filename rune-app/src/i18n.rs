@@ -124,6 +124,16 @@ impl Lang {
             "add_reference" => ["Выбрать референс", "Choose a reference", "参考画像を選ぶ"],
             "generate" => ["Нарисовать", "Make a drawing", "描いてもらう"],
             "credits" => ["кредитов", "credits", "クレジット"],
+            "drawing_cost" => ["Стоимость рисунка", "Drawing cost", "作成料金"],
+            "balance" => ["Остаток кредитов", "Credits remaining", "残りクレジット"],
+            "balance_loading" => ["Проверяем...", "Checking...", "確認中..."],
+            "balance_unknown" => ["Не проверен", "Not checked", "未確認"],
+            "balance_error" => [
+                "Не удалось обновить",
+                "Could not refresh",
+                "更新できませんでした",
+            ],
+            "balance_refresh" => ["Обновить", "Refresh", "更新"],
             "price_loading" => [
                 "Узнаём стоимость...",
                 "Checking the price...",

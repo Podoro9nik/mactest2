@@ -21,6 +21,8 @@ Python, браузер и отдельный сервер для запуска 
 3. Проверьте указанную стоимость и нажмите «Нарисовать». Это действие оплачивает получение готового оригинала.
 4. Дождитесь результата: оригинал без водяного знака появится в «Результат» и сохранится в «Мои рисунки». Отдельного предпросмотра и повторного подтверждения нет.
 
+Рядом со стоимостью генерации отображается остаток кредитов. Баланс обновляется при запуске и после завершения задачи; его также можно обновить вручную отдельной кнопкой. Проверка баланса не блокирует генерацию.
+
 ## Чиикавизировать фотографии
 
 Выберите «Чиикавизировать фото», добавьте до восьми PNG, JPEG или WebP и опишите общую сцену. Фотографии объединяются в один рисунок. Можно добавить отдельный референс.
@@ -43,6 +45,8 @@ Chiikawizator is a native Rune app for **Windows x64 and macOS 13+**, with separ
 - Check the displayed price before choosing **Make a drawing**. The finished original is purchased automatically, then appears in **Result** and **My drawings**, without a preview step.
 - Change the interface language in **Settings**. If a connection is interrupted, refresh the saved task instead of starting it again. Previously purchased drawings can also be recovered by ID.
 
+Your remaining credits appear beside the generation price. The balance refreshes on startup and after a task finishes, and you can refresh it manually. Checking the balance does not block generation.
+
 Personal installers include configured access and are intended for their owner and designated users. For encrypted build downloads and source build instructions, see [BUILDING.md](BUILDING.md).
 
 ## 日本語
@@ -53,6 +57,8 @@ Personal installers include configured access and are intended for their owner a
 - **写真から**：写真を8枚まで追加して、ひとつの場面にまとめます。「いつもの変身」が初期設定です。「からだも完全に変身」では、服や色、小物にその人らしさを残しながら、顔や体も小さな生きものに変わります。
 - 表示された料金を確認して**描いてもらう**を押すと、完成した原本を自動的に購入します。プレビューでの確認はなく、透かしのない原本が**できあがり**と**作品たち**に表示されます。
 - **設定**で日本語、英語、ロシア語を切り替えられます。接続が途切れたときは、保存済みの処理の状態を確認してください。購入済み作品はIDからも復元でき、再購入は不要です。
+
+生成料金の横に、残りのクレジットが表示されます。起動時と処理の終了後に自動更新され、手動でも更新できます。残高の確認中も生成を始められます。
 
 日本語表示には、アプリに組み込まれたChiikawa Kawaii JPを使います。配布ファイルには個人用の接続設定が含まれます。暗号化されたファイルの復元とソースからのビルドについては[BUILDING.md](BUILDING.md)をご覧ください。
 

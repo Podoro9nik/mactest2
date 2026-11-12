@@ -211,6 +211,10 @@ impl RemoteClient {
         self.tool("elyum_account", json!({}))
     }
 
+    pub fn balance(&mut self) -> AppResult<f64> {
+        parse_balance(&self.account()?)
+    }
+
     pub fn submit(
         &mut self,
         prompt: &str,
@@ -398,6 +402,12 @@ fn provider_error(code: Option<&str>, status: Option<u16>) -> String {
 
 fn finite_cost(value: &Value) -> Option<f64> {
     value.as_f64().filter(|c| c.is_finite() && *c >= 0.0)
+}
+
+fn parse_balance(account: &Value) -> AppResult<f64> {
+    // The account tool's balance is the current available credit balance.
+    // Plan limits, historical charges and estimates are not substitutes.
+    finite_cost(&account["balance"]).ok_or_else(|| "balance_unavailable".into())
 }
 
 pub fn parse_task(data: &Value, old: &RemoteTask) -> AppResult<RemoteTask> {

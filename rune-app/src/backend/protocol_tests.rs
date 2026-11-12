@@ -101,7 +101,7 @@ impl McpFixture {
                     }
                 } else {
                     let data = match tool {
-                        "elyum_account" => json!({"credits":100}),
+                        "elyum_account" => json!({"balance":100}),
                         "elyum_estimate" => json!({"credits":6}),
                         "elyum_make_image" => json!({"jobId":"g_fixture"}),
                         _ => panic!("unexpected fixture tool: {tool}"),
@@ -344,6 +344,42 @@ fn an_estimate_cannot_substitute_for_a_missing_final_price() {
 fn live_account_read_only() {
     let account = RemoteClient::new().unwrap().account().unwrap();
     assert!(account.is_object());
+    assert!(parse_balance(&account).unwrap() >= 0.0);
+}
+
+#[test]
+fn account_balance_uses_available_balance_not_credit_limits_or_estimates() {
+    assert_eq!(
+        parse_balance(&json!({"balance":120.25,"credits":5000,"held":12})),
+        Ok(120.25)
+    );
+    assert_eq!(parse_balance(&json!({"balance":0})), Ok(0.0));
+}
+
+#[test]
+fn balance_check_only_calls_the_read_only_account_tool() {
+    let server = McpFixture::new(UploadReply::Success);
+    assert_eq!(server.client().balance(), Ok(100.0));
+    let tools = server.tools();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0]["name"], "elyum_account");
+    assert_eq!(tools[0]["arguments"], json!({}));
+}
+
+#[test]
+fn invalid_or_missing_balance_never_silently_becomes_zero() {
+    for value in [
+        json!({}),
+        json!({"credits":120}),
+        json!({"balance":null}),
+        json!({"balance":"120"}),
+        json!({"balance":-1}),
+        json!({"balance":f64::NAN}),
+        json!({"balance":f64::INFINITY}),
+        json!({"balance":{"remaining":120}}),
+    ] {
+        assert_eq!(parse_balance(&value), Err("balance_unavailable".into()));
+    }
 }
 #[test]
 #[ignore = "Requires an RemoteClient key; uploads one synthetic image, no generation or spending"]

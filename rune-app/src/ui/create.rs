@@ -516,12 +516,25 @@ fn result(state: &State) -> El {
         .child(heading(l.text("result")))
         .child(content)
         .child(el().w_full().h(1.0).fill(line()))
+        .child(balance(state))
         .child(
-            label(price, 24.0)
-                .key("price")
+            col()
                 .w_full()
-                .wrap()
-                .align(Align::Center),
+                .gap(4.0)
+                .child(
+                    label(l.text("drawing_cost"), 18.0)
+                        .w_full()
+                        .wrap()
+                        .align(Align::Center)
+                        .color(muted()),
+                )
+                .child(
+                    label(price, 24.0)
+                        .key("price")
+                        .w_full()
+                        .wrap()
+                        .align(Align::Center),
+                ),
         );
     if !state.quote_pending && state.quote.is_none() {
         body = body.child(
@@ -549,6 +562,62 @@ fn result(state: &State) -> El {
             .align(Align::Center)
             .color(muted()),
     )
+}
+
+fn balance(state: &State) -> El {
+    let l = state.lang;
+    let value = if state.balance_pending {
+        l.text("balance_loading").to_string()
+    } else if state.balance_error.is_some() {
+        l.text("balance_error").to_string()
+    } else if let Some(amount) = state.balance {
+        format!("{amount:.2} {}", l.text("credits"))
+    } else {
+        l.text("balance_unknown").to_string()
+    };
+    let disabled = state.busy || state.balance_pending || !state.booted;
+    row()
+        .key("balance-panel")
+        .w_full()
+        .gap(8.0)
+        .center_y()
+        .padding(12.0)
+        .radius(14.0)
+        .fill(color("#EFF7FB"))
+        .child(
+            col()
+                .grow(1.0)
+                .min_w(0.0)
+                .gap(4.0)
+                .child(
+                    label(l.text("balance"), 18.0)
+                        .key("balance-label")
+                        .w_full()
+                        .wrap_anywhere()
+                        .color(muted()),
+                )
+                .child(
+                    label(value, 22.0)
+                        .key("balance-value")
+                        .w_full()
+                        .wrap_anywhere(),
+                ),
+        )
+        .child(
+            button(
+                "balance-refresh",
+                l.text("balance_refresh"),
+                false,
+                disabled,
+            )
+            .px(8.0)
+            .py(5.0)
+            .on_press(|s: &mut State| {
+                if !s.busy && !s.balance_pending && s.booted {
+                    s.refresh_balance();
+                }
+            }),
+        )
 }
 
 fn result_status(state: &State) -> El {

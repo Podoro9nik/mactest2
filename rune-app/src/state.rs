@@ -37,6 +37,7 @@ enum Command {
 enum Event {
     Boot(Result<(Lang, Vec<Job>), String>),
     Quote(u64, Result<f64, String>),
+    Balance(u64, Result<f64, String>),
     Progress(Job),
     Finished(Result<(Job, Vec<u8>), String>),
     History(Vec<Job>),
@@ -58,15 +59,21 @@ pub struct State {
     pub busy: bool,
     pub quote: Option<f64>,
     pub quote_pending: bool,
+    pub balance: Option<f64>,
+    pub balance_pending: bool,
+    pub balance_error: Option<String>,
     pub error: Option<String>,
     pub notice: Option<String>,
     pub booted: bool,
     cache: Option<ImageCache>,
     sender: Option<Sender<Command>>,
+    balance_sender: Option<Sender<u64>>,
     events: Option<Receiver<Event>>,
     waker: Option<Waker>,
     quote_id: u64,
     quote_generation: Arc<AtomicU64>,
+    balance_generation: Arc<AtomicU64>,
+    balance_after_job: bool,
     pub offline: bool,
 }
 impl State {
@@ -86,15 +93,21 @@ impl State {
             busy: false,
             quote: None,
             quote_pending: false,
+            balance: None,
+            balance_pending: false,
+            balance_error: None,
             error: None,
             notice: None,
             booted: false,
             cache: None,
             sender: None,
+            balance_sender: None,
             events: None,
             waker: None,
             quote_id: 0,
             quote_generation: Arc::new(AtomicU64::new(0)),
+            balance_generation: Arc::new(AtomicU64::new(0)),
+            balance_after_job: false,
             offline: std::env::var_os("CHIIKAWIZATOR_OFFLINE").is_some()
                 || std::env::args().any(|a| matches!(a.as_str(), "--snap" | "--tree" | "--script")),
         }
@@ -114,6 +127,7 @@ impl State {
         if self.offline {
             self.booted = true;
             self.quote = Some(3.0);
+            self.balance = Some(120.0);
         }
     }
     pub fn start(&mut self) {
@@ -122,13 +136,25 @@ impl State {
         }
         let (commands_tx, commands_rx) = mpsc::channel();
         let (events_tx, events_rx) = mpsc::channel();
+        let (balance_tx, balance_rx) = mpsc::channel();
         let wake = self.waker.as_ref().expect("setup before ready").clone();
         let quote_generation = self.quote_generation.clone();
+        let balance_generation = self.balance_generation.clone();
         self.sender = Some(commands_tx);
+        self.balance_sender = Some(balance_tx);
         self.events = Some(events_rx);
         std::thread::Builder::new()
             .name("drawing-worker".into())
-            .spawn(move || worker(commands_rx, events_tx, wake, quote_generation))
+            .spawn(move || {
+                worker(
+                    commands_rx,
+                    balance_rx,
+                    events_tx,
+                    wake,
+                    quote_generation,
+                    balance_generation,
+                )
+            })
             .expect("start drawing worker");
     }
     fn send(&mut self, command: Command) {
@@ -176,6 +202,37 @@ impl State {
             self.send(Command::Language(lang));
         }
     }
+    pub fn refresh_balance(&mut self) {
+        if self.busy || self.balance_pending || !self.booted {
+            return;
+        }
+        if self.offline {
+            self.balance = Some(120.0);
+            self.balance_error = None;
+            self.balance_pending = false;
+            return;
+        }
+        let id = self.balance_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        self.balance_pending = true;
+        self.balance_error = None;
+        if self
+            .balance_sender
+            .as_ref()
+            .is_none_or(|sender| sender.send(id).is_err())
+        {
+            self.balance_pending = false;
+            self.balance = None;
+            self.balance_error = Some("balance_unavailable".into());
+        }
+    }
+    fn invalidate_balance_for_job(&mut self) {
+        // A balance fetched before a purchase must never replace the post-purchase value.
+        self.balance_generation.fetch_add(1, Ordering::Relaxed);
+        self.balance = None;
+        self.balance_pending = false;
+        self.balance_error = None;
+        self.balance_after_job = true;
+    }
     pub fn generate(&mut self) {
         if self.busy || self.offline {
             return;
@@ -190,6 +247,7 @@ impl State {
             self.request_quote();
             return;
         }
+        self.invalidate_balance_for_job();
         self.busy = true;
         self.result = None;
         self.job = None;
@@ -203,6 +261,7 @@ impl State {
         }
         if let Some(job) = &self.job {
             let id = job.id.clone();
+            self.invalidate_balance_for_job();
             self.busy = true;
             self.error = None;
             self.send(Command::Resume(id));
@@ -217,6 +276,7 @@ impl State {
             self.error = Some("invalid_task_id".into());
             return;
         }
+        self.invalidate_balance_for_job();
         self.busy = true;
         self.error = None;
         self.result = None;
@@ -315,6 +375,7 @@ impl State {
                     self.history = history;
                     self.booted = true;
                     self.request_quote();
+                    self.refresh_balance();
                 }
                 Event::Boot(Err(error)) => {
                     self.booted = true;
@@ -350,6 +411,22 @@ impl State {
                     }
                 }
                 Event::Quote(..) => (),
+                Event::Balance(id, result)
+                    if id == self.balance_generation.load(Ordering::Relaxed) =>
+                {
+                    self.balance_pending = false;
+                    match result {
+                        Ok(balance) => {
+                            self.balance = Some(balance);
+                            self.balance_error = None;
+                        }
+                        Err(error) => {
+                            self.balance = None;
+                            self.balance_error = Some(error);
+                        }
+                    }
+                }
+                Event::Balance(..) => (),
                 Event::Progress(job) => {
                     self.job = Some(job);
                 }
@@ -370,6 +447,10 @@ impl State {
                     }
                     if self.quote.is_none() {
                         self.request_quote();
+                    }
+                    if self.balance_after_job {
+                        self.balance_after_job = false;
+                        self.refresh_balance();
                     }
                 }
                 Event::History(jobs) => self.history = jobs,
@@ -406,9 +487,11 @@ fn valid_photo_extension(path: &std::path::Path) -> bool {
 }
 fn worker(
     commands: Receiver<Command>,
+    balance_requests: Receiver<u64>,
     events: Sender<Event>,
     wake: Waker,
     quote_generation: Arc<AtomicU64>,
+    balance_generation: Arc<AtomicU64>,
 ) {
     let emit = |event| {
         let _ = events.send(event);
@@ -427,6 +510,24 @@ fn worker(
             return;
         }
     };
+    // Account reads have their own bounded, serial queue, so a slow balance
+    // request cannot hold up uploading photos, rendering, or saving the original.
+    let balance_engine = engine.clone();
+    let balance_events = events.clone();
+    let balance_wake = wake.clone();
+    std::thread::Builder::new()
+        .name("drawing-balance".into())
+        .spawn(move || {
+            for id in balance_requests {
+                if id != balance_generation.load(Ordering::Relaxed) {
+                    continue;
+                }
+                let result = balance_engine.balance();
+                let _ = balance_events.send(Event::Balance(id, result));
+                balance_wake();
+            }
+        })
+        .expect("start balance worker");
     let language = std::fs::read(&preference_path)
         .ok()
         .and_then(|b| serde_json::from_slice::<Lang>(&b).ok())
@@ -518,3 +619,7 @@ mod tests {
 #[cfg(test)]
 #[path = "state_tests.rs"]
 mod integration_tests;
+
+#[cfg(test)]
+#[path = "state_balance_tests.rs"]
+mod balance_tests;

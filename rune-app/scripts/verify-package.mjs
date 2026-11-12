@@ -40,7 +40,7 @@ for (const language of ['ru', 'en', 'ja']) {
   JSON.parse(await readFile(tree, 'utf8'));
 }
 const tracePath = join(output, 'native-smoke.jsonl');
-await run('native-smoke', ['--native', '--scene', 'home-ru', '--trace', tracePath, '--frames', '10']);
+await run('native-smoke', ['--native', '--scene', 'home-ru', '--trace', tracePath, '--frames', '10'], 120_000);
 const trace = (await readFile(tracePath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line));
 if (trace[0]?.clock !== 'wall' || trace.length < 11) throw new Error('Native smoke test did not present ten frames.');
 // App-generated text is inspected as well as captured stdout before public CI upload.

@@ -47,8 +47,8 @@ jobs:
         run: test -n "$CHIIKAWA_EMBEDDED_MCP_KEY" || { echo 'Set the CHIIKAWA_EMBEDDED_MCP_KEY Actions secret.'; exit 1; }
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.99.1 --profile minimal --no-self-update
-      - name: Verify artifact encryption and source staging
-        run: node --test rune-app/scripts/artifact-crypto.test.mjs rune-app/scripts/stage-source.test.mjs
+      - name: Verify packaging safety scripts
+        run: node --test rune-app/scripts/artifact-crypto.test.mjs rune-app/scripts/stage-source.test.mjs rune-app/scripts/sanitize-verification.test.mjs
       # Do not cache target/: its objects contain the embedded personal credential.
       - name: Test, build, verify GUI and package DMG
         run: bash rune-app/scripts/build-macos.sh
@@ -66,6 +66,20 @@ jobs:
             rune-app/encrypted-artifacts/*.enc
             rune-app/verification/macos-${{ matrix.arch }}/
           if-no-files-found: error
+          retention-days: 7
+      - name: Sanitize failed verification reports
+        id: failure_reports
+        if: failure()
+        shell: bash
+        run: |
+          node rune-app/scripts/sanitize-verification.mjs "rune-app/verification/macos-${{ matrix.arch }}"
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.failure_reports.outputs.ready == 'true'
+        with:
+          name: Chiikawizator-Rune-macOS-${{ matrix.arch }}-diagnostics
+          path: rune-app/verification/macos-${{ matrix.arch }}/
+          if-no-files-found: warn
           retention-days: 7
 
   windows:
@@ -120,4 +134,19 @@ jobs:
             rune-app/encrypted-artifacts/*.enc
             rune-app/verification/windows/
           if-no-files-found: error
+          retention-days: 7
+      - name: Sanitize failed verification reports
+        id: failure_reports
+        if: failure()
+        shell: pwsh
+        run: |
+          node rune-app/scripts/sanitize-verification.mjs rune-app/verification/windows
+          if ($LASTEXITCODE -ne 0) { throw 'Verification report sanitization failed.' }
+          'ready=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.failure_reports.outputs.ready == 'true'
+        with:
+          name: Chiikawizator-Rune-Windows-x64-diagnostics
+          path: rune-app/verification/windows/
+          if-no-files-found: warn
           retention-days: 7

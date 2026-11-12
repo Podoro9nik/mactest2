@@ -40,6 +40,11 @@ impl Engine {
         !protocol::configured_key().is_empty()
     }
 
+    /// Read the current available credits. A missing balance is an error, not zero.
+    pub fn balance(&self) -> AppResult<f64> {
+        protocol::RemoteClient::new()?.balance()
+    }
+
     pub fn list(&self) -> AppResult<Vec<Job>> {
         let mut jobs = self.store.list()?;
         for job in &mut jobs {

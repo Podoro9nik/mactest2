@@ -149,12 +149,15 @@ fn narrow_windows_keep_the_price_and_generate_action_on_screen() {
             runtime.update(|state, _| {
                 state.lang = lang;
                 state.error = Some("keep_uncertain".into());
+                state.balance_error = Some("network_error".into());
             });
             runtime.frame(0.0);
             for key in [
                 "sidebar",
                 "result-panel",
                 "price",
+                "balance-panel",
+                "balance-refresh",
                 "generate",
                 "language-ja",
             ] {
@@ -224,4 +227,81 @@ fn completed_original_is_painted_and_export_opens_a_save_dialog() {
         runtime.find("resume").is_some(),
         "completed jobs with a missing local image must be recoverable"
     );
+}
+
+fn shown_text(runtime: &Runtime<State>, key: &str) -> String {
+    runtime
+        .elements()
+        .into_iter()
+        .find(|node| node.key.as_deref() == Some(key))
+        .and_then(|node| node.text)
+        .unwrap_or_else(|| panic!("missing text for {key}"))
+}
+
+#[test]
+fn remaining_credits_distinguish_zero_unknown_loading_and_failed_refresh() {
+    let mut runtime = app();
+    for lang in [Lang::Ru, Lang::En, Lang::Ja] {
+        runtime.update(|state, _| {
+            state.lang = lang;
+            state.balance = Some(124.5);
+            state.balance_pending = false;
+            state.balance_error = None;
+        });
+        runtime.frame(0.0);
+        assert_eq!(shown_text(&runtime, "balance-label"), lang.text("balance"));
+        assert_eq!(
+            shown_text(&runtime, "balance-value"),
+            format!("124.50 {}", lang.text("credits"))
+        );
+        runtime.update(|state, _| state.balance = Some(0.0));
+        runtime.frame(0.0);
+        assert_eq!(
+            shown_text(&runtime, "balance-value"),
+            format!("0.00 {}", lang.text("credits"))
+        );
+        runtime.update(|state, _| state.balance = None);
+        runtime.frame(0.0);
+        assert_eq!(
+            shown_text(&runtime, "balance-value"),
+            lang.text("balance_unknown")
+        );
+        runtime.update(|state, _| {
+            state.balance = Some(124.5);
+            state.balance_pending = true;
+        });
+        runtime.frame(0.0);
+        assert_eq!(
+            shown_text(&runtime, "balance-value"),
+            lang.text("balance_loading")
+        );
+        tap(&mut runtime, "balance-refresh");
+        assert!(
+            runtime.state.balance_pending,
+            "an in-flight refresh must not restart"
+        );
+        runtime.update(|state, _| {
+            state.balance_pending = false;
+            state.balance_error = Some("network_error".into());
+        });
+        runtime.frame(0.0);
+        assert_eq!(
+            shown_text(&runtime, "balance-value"),
+            lang.text("balance_error"),
+            "a stale number must not look current"
+        );
+        runtime.update(|state, _| state.busy = true);
+        runtime.frame(0.0);
+        tap(&mut runtime, "balance-refresh");
+        assert!(
+            runtime.state.balance_error.is_some(),
+            "refresh must stay disabled during generation"
+        );
+        runtime.update(|state, _| state.busy = false);
+        runtime.frame(0.0);
+        tap(&mut runtime, "balance-refresh");
+        assert!(runtime.state.balance_error.is_none());
+        assert!(runtime.state.balance.is_some());
+        assert!(!runtime.state.balance_pending);
+    }
 }

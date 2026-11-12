@@ -37,11 +37,13 @@ The script builds and tests in the release profile on the host architecture, cre
 ## Verification and private artifacts
 
 ```sh
-node --test rune-app/scripts/artifact-crypto.test.mjs rune-app/scripts/stage-source.test.mjs
+node --test rune-app/scripts/artifact-crypto.test.mjs rune-app/scripts/stage-source.test.mjs rune-app/scripts/sanitize-verification.test.mjs
 node rune-app/scripts/verify-package.mjs EXECUTABLE OUTPUT_DIRECTORY
 ```
 
 Verification sets `CHIIKAWIZATOR_OFFLINE=1`, runs `--self-test`, renders `home-ru`, `home-en` and `home-ja`, checks the corresponding JSON trees, and presents ten frames in an actual native window. It does not submit or buy images. Diagnostics are checked for credential content before upload.
+
+If verification fails, CI uploads the reports separately only after their text has been sanitized. Unexpected binary files and symlinks prevent that diagnostic upload. Raw application executables and installers are never included in a diagnostic archive.
 
 The `Rune desktop apps` GitHub Actions workflow produces encrypted `.enc` installers and screenshots/check reports. Restore a downloaded installer locally with the same build key in the environment:
 
