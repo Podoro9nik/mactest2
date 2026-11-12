@@ -38,6 +38,9 @@ if [[ "$SKIP_BUILD" == false ]]; then
   fi
   [[ -n "${CHIIKAWA_EMBEDDED_MCP_KEY:-}" ]] || { echo 'Set CHIIKAWA_EMBEDDED_MCP_KEY before creating the personal installer.' >&2; exit 1; }
   [[ -f vendor/rune/crates/rune/Cargo.toml ]] || { echo 'Pinned Rune checkout missing at vendor/rune.' >&2; exit 1; }
+  SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+  export SDKROOT
+  [[ -d "$SDKROOT" ]] || { echo 'The macOS SDK could not be located.' >&2; exit 1; }
   # linker-flavor selects Darwin LLD, but does not locate Rust's bundled executable.
   RUST_SYSROOT="$(rustc +1.99.1 --print sysroot)"
   RUST_HOST="$(rustc +1.99.1 -vV | sed -n 's/^host: //p')"
