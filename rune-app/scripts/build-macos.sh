@@ -38,6 +38,16 @@ if [[ "$SKIP_BUILD" == false ]]; then
   fi
   [[ -n "${CHIIKAWA_EMBEDDED_MCP_KEY:-}" ]] || { echo 'Set CHIIKAWA_EMBEDDED_MCP_KEY before creating the personal installer.' >&2; exit 1; }
   [[ -f vendor/rune/crates/rune/Cargo.toml ]] || { echo 'Pinned Rune checkout missing at vendor/rune.' >&2; exit 1; }
+  # linker-flavor selects Darwin LLD, but does not locate Rust's bundled executable.
+  RUST_SYSROOT="$(rustc +1.99.1 --print sysroot)"
+  RUST_HOST="$(rustc +1.99.1 -vV | sed -n 's/^host: //p')"
+  RUST_LLD="$RUST_SYSROOT/lib/rustlib/$RUST_HOST/bin/rust-lld"
+  [[ -x "$RUST_LLD" ]] || { printf 'Bundled Rust linker is missing: %s\n' "$RUST_LLD" >&2; exit 1; }
+  case "$ARCH" in
+    arm64) export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="$RUST_LLD" ;;
+    x64) export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="$RUST_LLD" ;;
+  esac
+  "$RUST_LLD" -flavor darwin --version
   if [[ "$SKIP_TESTS" == false ]]; then cargo +1.99.1 test --release --locked -- --test-threads=1; fi
   cargo +1.99.1 build --release --locked
 fi
