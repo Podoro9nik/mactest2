@@ -1,14 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const script = join(dirname(fileURLToPath(import.meta.url)), 'stage-source.mjs');
 const fakeCredential = 'ek_mcp_' + 'fixture_not_a_real_credential_123';
 async function fixture(t) {
-  const prefix = join(tmpdir(), 'chiikawa-stage-test-');
+  // macOS exposes /var as /private/var; Node resolves a script's symlinked entry path.
+  const prefix = join(await realpath(tmpdir()), 'chiikawa-stage-test-');
   const root = await mkdtemp(prefix);
   t.after(async () => {
     assert.ok(root.startsWith(prefix));
