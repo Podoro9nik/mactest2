@@ -71,7 +71,8 @@ plutil -lint "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 if [[ "$SKIP_SMOKE" == false ]]; then
-  node scripts/verify-package.mjs "$APP/Contents/MacOS/chiikawizator-rune" "$APP_ROOT/verification/macos-$ARCH"
+  # Long CI builds can leave the display asleep; native surfaces need an awake display.
+  /usr/bin/caffeinate -d -i -u node scripts/verify-package.mjs "$APP/Contents/MacOS/chiikawizator-rune" "$APP_ROOT/verification/macos-$ARCH"
 fi
 ln -s /Applications "$STAGE/Applications"
 DMG="$APP_ROOT/dist/Chiikawizator-Rune_${VERSION}_macos-${ARCH}.dmg"
