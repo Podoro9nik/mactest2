@@ -8,6 +8,8 @@ use rune::{
 
 mod create;
 mod pages;
+mod scrolling;
+use scrolling::ScrollControls;
 #[cfg(test)]
 mod tests;
 

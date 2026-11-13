@@ -1,4 +1,4 @@
-name: Rune desktop apps
+name: Chiikawizator desktop apps
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   macos:
-    name: macOS ${{ matrix.arch }} Rune DMG
+    name: macOS ${{ matrix.arch }} DMG
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +61,7 @@ jobs:
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: Chiikawizator-Rune-macOS-${{ matrix.arch }}
+          name: Chiikawizator-macOS-${{ matrix.arch }}
           path: |
             rune-app/encrypted-artifacts/*.enc
             rune-app/verification/macos-${{ matrix.arch }}/
@@ -77,13 +77,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure() && steps.failure_reports.outputs.ready == 'true'
         with:
-          name: Chiikawizator-Rune-macOS-${{ matrix.arch }}-diagnostics
+          name: Chiikawizator-macOS-${{ matrix.arch }}-diagnostics
           path: rune-app/verification/macos-${{ matrix.arch }}/
           if-no-files-found: warn
           retention-days: 7
 
   windows:
-    name: Windows x64 Rune installer
+    name: Windows x64 installer
     runs-on: windows-2025
     timeout-minutes: 90
     env:
@@ -129,7 +129,7 @@ jobs:
           }
       - uses: actions/upload-artifact@v4
         with:
-          name: Chiikawizator-Rune-Windows-x64
+          name: Chiikawizator-Windows-x64
           path: |
             rune-app/encrypted-artifacts/*.enc
             rune-app/verification/windows/
@@ -146,7 +146,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure() && steps.failure_reports.outputs.ready == 'true'
         with:
-          name: Chiikawizator-Rune-Windows-x64-diagnostics
+          name: Chiikawizator-Windows-x64-diagnostics
           path: rune-app/verification/windows/
           if-no-files-found: warn
           retention-days: 7

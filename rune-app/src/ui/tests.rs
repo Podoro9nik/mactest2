@@ -50,6 +50,120 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
+fn rect(runtime: &Runtime<State>, key: &str) -> [f32; 4] {
+    runtime
+        .presented(key)
+        .unwrap_or_else(|| panic!("missing {key}"))
+        .0
+}
+
+#[test]
+fn visible_scrollbar_tracks_wheel_thumb_drag_and_clamps_at_both_ends() {
+    let mut runtime = app_at((1100.0, 720.0));
+    runtime.frame(0.016);
+    let track = rect(&runtime, "form-scroll-track");
+    let thumb = rect(&runtime, "form-scroll-thumb");
+    assert!(
+        track[2] >= 14.0 && track[3] > 200.0,
+        "visible track: {track:?}"
+    );
+    assert!(
+        thumb[3] >= 32.0 && thumb[3] < track[3],
+        "proportional thumb: {thumb:?}"
+    );
+    let story_y = rect(&runtime, "story-card")[1];
+    let form = rect(&runtime, "form-scroll");
+    runtime.wheel(form[0] + 50.0, form[1] + 60.0, -200.0);
+    runtime.frame(0.016);
+    assert!(rect(&runtime, "story-card")[1] < story_y - 150.0);
+    assert!(rect(&runtime, "form-scroll-thumb")[1] > thumb[1]);
+    runtime.wheel(form[0] + 50.0, form[1] + 60.0, -100_000.0);
+    runtime.frame(0.016);
+    assert_eq!(runtime.scroll_at_bottom("form-scroll"), Some(true));
+    let bottom_thumb = rect(&runtime, "form-scroll-thumb");
+    assert!(bottom_thumb[1] + bottom_thumb[3] <= track[1] + track[3] + 0.5);
+    let x = bottom_thumb[0] + bottom_thumb[2] / 2.0;
+    let y = bottom_thumb[1] + bottom_thumb[3] / 2.0;
+    runtime.pointer_down(x, y);
+    runtime.frame(0.016);
+    // Pointer capture continues beyond the track and clamps exactly to the start.
+    runtime.pointer_move(x, track[1] - 500.0);
+    runtime.frame(0.016);
+    runtime.pointer_up(x, track[1] - 500.0);
+    runtime.frame(0.016);
+    assert!((rect(&runtime, "story-card")[1] - story_y).abs() < 1.0);
+    assert!((rect(&runtime, "form-scroll-thumb")[1] - track[1]).abs() < 0.5);
+    assert_eq!(runtime.scroll_at_bottom("form-scroll"), Some(false));
+}
+
+#[test]
+fn middle_drag_pans_over_controls_without_activating_them_and_stops_on_release() {
+    let mut runtime = app_at((1100.0, 720.0));
+    let original = runtime.state.description.text.clone();
+    let start_y = rect(&runtime, "story-card")[1];
+    let (x, y) = runtime.find("idea-picnic").unwrap();
+    runtime.button_down(x, y, rune::PointerButton::Middle);
+    runtime.frame(0.016);
+    runtime.pointer_move(x, y - 180.0);
+    runtime.frame(0.016);
+    assert!((rect(&runtime, "story-card")[1] - (start_y - 180.0)).abs() < 1.0);
+    runtime.button_up(x, y - 180.0, rune::PointerButton::Middle);
+    runtime.frame(0.016);
+    assert_eq!(runtime.state.description.text, original);
+    let released_y = rect(&runtime, "story-card")[1];
+    runtime.pointer_move(x, y - 300.0);
+    runtime.frame(0.016);
+    assert!((rect(&runtime, "story-card")[1] - released_y).abs() < 0.5);
+    // A primary click still belongs to the button, not the containing pan surface.
+    tap(&mut runtime, "idea-picnic");
+    assert!(runtime.state.description.text.contains("пикник"));
+}
+
+#[test]
+fn history_settings_and_result_use_the_same_visible_scroll_controls() {
+    let mut runtime = app_at((1100.0, 720.0));
+    runtime.frame(0.016);
+    assert!(rect(&runtime, "result-scroll-track")[3] > 0.0);
+    runtime.update(|state, _| {
+        state.page = Page::History;
+        state.history = (0..15)
+            .map(|index| crate::backend::Job {
+                id: format!("history-{index}"),
+                description: "A long saved drawing description".into(),
+                created_at: "2026-11-13T00:00:00Z".into(),
+                stage: crate::backend::Stage::Completed,
+                remote_id: None,
+                cost: Some(9.0),
+                image_path: None,
+                error: None,
+            })
+            .collect();
+    });
+    runtime.frame(0.016);
+    let track = rect(&runtime, "history-page-track");
+    assert!(track[3] > 0.0);
+    let x = track[0] + track[2] / 2.0;
+    let y = track[1] + track[3] - 2.0;
+    runtime.pointer_down(x, y);
+    runtime.frame(0.016);
+    runtime.pointer_up(x, y);
+    runtime.frame(0.016);
+    assert_eq!(runtime.scroll_at_bottom("history-page"), Some(true));
+    runtime.update(|state, _| state.page = Page::Settings);
+    runtime.frame(0.016);
+    let track = rect(&runtime, "settings-page-track");
+    assert!(track[3] > 0.0);
+    let x = track[0] - 60.0;
+    let y = track[1] + 100.0;
+    runtime.button_down(x, y, rune::PointerButton::Middle);
+    runtime.frame(0.016);
+    runtime.pointer_move(x, y - 10_000.0);
+    runtime.frame(0.016);
+    runtime.button_up(x, y - 10_000.0, rune::PointerButton::Middle);
+    runtime.frame(0.016);
+    assert_eq!(runtime.scroll_at_bottom("settings-page"), Some(true));
+}
+
 #[test]
 fn inspiration_and_languages_are_clickable_without_starting_a_job() {
     let mut runtime = app();

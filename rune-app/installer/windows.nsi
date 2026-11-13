@@ -16,19 +16,20 @@ SetCompressorDictSize 64
   !error "OUTPUT_PATH must name the installer output."
 !endif
 
-!define APP_NAME "Chiikawizator Rune"
-!define APP_VERSION "4.0.0"
+!define APP_NAME "Chiikawizator"
+!define APP_VERSION "4.1.0"
+; Keep the 4.0 registry identity so upgrades replace the existing installation.
 !define APP_REG "Software\ChiikawizatorRune"
 !define UNINSTALL_REG "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChiikawizatorRune"
 Name "${APP_NAME}"
 OutFile "${OUTPUT_PATH}"
-InstallDir "$LOCALAPPDATA\Programs\Chiikawizator Rune"
+InstallDir "$LOCALAPPDATA\Programs\Chiikawizator"
 InstallDirRegKey HKCU "${APP_REG}" "InstallDir"
 Icon "${APP_ROOT}\assets\icons\icon.ico"
 UninstallIcon "${APP_ROOT}\assets\icons\icon.ico"
-VIProductVersion "4.0.0.0"
+VIProductVersion "4.1.0.0"
 VIAddVersionKey /LANG=1033 "ProductName" "${APP_NAME}"
-VIAddVersionKey /LANG=1033 "FileDescription" "Chiikawizator Rune installer"
+VIAddVersionKey /LANG=1033 "FileDescription" "Chiikawizator installer"
 VIAddVersionKey /LANG=1033 "FileVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "Chiikawizator contributors"
@@ -36,11 +37,7 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Chiikawizator contributors"
 !define MUI_ICON "${APP_ROOT}\assets\icons\icon.ico"
 !define MUI_UNICON "${APP_ROOT}\assets\icons\icon.ico"
 !define MUI_ABORTWARNING
-!define MUI_LANGDLL_REGISTRY_ROOT HKCU
-!define MUI_LANGDLL_REGISTRY_KEY "${APP_REG}"
-!define MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"
-!define MUI_LANGDLL_ALWAYSSHOW
-!define MUI_FINISHPAGE_RUN "$INSTDIR\chiikawizator-rune.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\chiikawizator.exe"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -49,16 +46,9 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Chiikawizator contributors"
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
-!insertmacro MUI_LANGUAGE "Russian"
 !insertmacro MUI_LANGUAGE "English"
-!insertmacro MUI_LANGUAGE "Japanese"
-!insertmacro MUI_RESERVEFILE_LANGDLL
-SetFont /LANG=${LANG_RUSSIAN} "Chiikawa Kawaii" 10
 SetFont /LANG=${LANG_ENGLISH} "Chiikawa Kawaii" 10
-SetFont /LANG=${LANG_JAPANESE} "Chiikawa Kawaii JP" 10
-LangString X64Required ${LANG_RUSSIAN} "Для приложения необходима 64-разрядная Windows."
 LangString X64Required ${LANG_ENGLISH} "This application requires 64-bit Windows."
-LangString X64Required ${LANG_JAPANESE} "このアプリには64ビット版Windowsが必要です。"
 
 Function .onInit
     SetShellVarContext current
@@ -67,7 +57,7 @@ Function .onInit
     File /oname=$PLUGINSDIR\ChiikawaJP.ttf "${APP_ROOT}\assets\fonts\ChiikawaKawaiiJP-Regular.ttf"
     System::Call 'gdi32::AddFontResourceExW(w "$PLUGINSDIR\Chiikawa.ttf", i 0x10, p 0) i .r0'
     System::Call 'gdi32::AddFontResourceExW(w "$PLUGINSDIR\ChiikawaJP.ttf", i 0x10, p 0) i .r0'
-    !insertmacro MUI_LANGDLL_DISPLAY
+    StrCpy $LANGUAGE ${LANG_ENGLISH}
     ${IfNot} ${RunningX64}
         Abort "$(X64Required)"
     ${EndIf}
@@ -76,7 +66,13 @@ FunctionEnd
 Section "Application" SEC_APP
     SetShellVarContext current
     SetOutPath "$INSTDIR"
-    File /oname=chiikawizator-rune.exe "${EXE_PATH}"
+    File /oname=chiikawizator.exe "${EXE_PATH}"
+    ; Remove only known 4.0 executable/shortcuts, retaining the user's drawings.
+    Delete "$INSTDIR\chiikawizator-rune.exe"
+    Delete "$DESKTOP\Chiikawizator Rune.lnk"
+    Delete "$SMPROGRAMS\Chiikawizator Rune\Chiikawizator Rune.lnk"
+    Delete "$SMPROGRAMS\Chiikawizator Rune\Uninstall.lnk"
+    RMDir "$SMPROGRAMS\Chiikawizator Rune"
     SetOutPath "$INSTDIR\resources"
     File /oname=icon.ico "${APP_ROOT}\assets\icons\icon.ico"
     File /oname=RUNE-LICENSE.txt "${APP_ROOT}\vendor\rune\LICENSE"
@@ -87,9 +83,9 @@ Section "Application" SEC_APP
     SetOutPath "$INSTDIR"
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\chiikawizator-rune.exe" "" "$INSTDIR\resources\icon.ico"
+    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\chiikawizator.exe" "" "$INSTDIR\resources\icon.ico"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
-    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\chiikawizator-rune.exe" "" "$INSTDIR\resources\icon.ico"
+    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\chiikawizator.exe" "" "$INSTDIR\resources\icon.ico"
     WriteRegStr HKCU "${APP_REG}" "InstallDir" "$INSTDIR"
     WriteRegStr HKCU "${UNINSTALL_REG}" "DisplayName" "${APP_NAME}"
     WriteRegStr HKCU "${UNINSTALL_REG}" "DisplayVersion" "${APP_VERSION}"
@@ -108,7 +104,7 @@ Function un.onInit
     CopyFiles /SILENT "$INSTDIR\resources\ChiikawaKawaiiJP-Regular.ttf" "$PLUGINSDIR\ChiikawaJP.ttf"
     System::Call 'gdi32::AddFontResourceExW(w "$PLUGINSDIR\Chiikawa.ttf", i 0x10, p 0) i .r0'
     System::Call 'gdi32::AddFontResourceExW(w "$PLUGINSDIR\ChiikawaJP.ttf", i 0x10, p 0) i .r0'
-    !insertmacro MUI_UNGETLANGUAGE
+    StrCpy $LANGUAGE ${LANG_ENGLISH}
 FunctionEnd
 
 Section "Uninstall"
@@ -117,7 +113,7 @@ Section "Uninstall"
     Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
     Delete "$SMPROGRAMS\${APP_NAME}\Uninstall.lnk"
     RMDir "$SMPROGRAMS\${APP_NAME}"
-    Delete "$INSTDIR\chiikawizator-rune.exe"
+    Delete "$INSTDIR\chiikawizator.exe"
     Delete "$INSTDIR\resources\icon.ico"
     Delete "$INSTDIR\resources\RUNE-LICENSE.txt"
     Delete "$INSTDIR\resources\OFL-Yomogi.txt"

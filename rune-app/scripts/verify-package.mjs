@@ -25,7 +25,7 @@ const selfTestText = await run('self-test', ['--self-test']);
 const selfTest = JSON.parse(selfTestText.trim().replace(/^\uFEFF/, ''));
 if (selfTest.ok !== true) throw new Error('Application self-test did not report ok:true.');
 if (selfTest.hasEmbeddedKey !== true) throw new Error('The personal installer does not contain its configured access.');
-if (selfTest.renderer !== 'Rune' || selfTest.version !== '4.0.0') throw new Error('Unexpected application renderer or version.');
+if (selfTest.renderer !== 'Rune' || selfTest.version !== '4.1.0') throw new Error('Unexpected application renderer or version.');
 const characterCount = Array.isArray(selfTest.characters) ? selfTest.characters.length : selfTest.characters;
 if (characterCount !== 8) throw new Error('The application does not include all eight characters.');
 await writeFile(join(output, 'self-test.json'), redact(JSON.stringify(selfTest, null, 2)) + '\n');

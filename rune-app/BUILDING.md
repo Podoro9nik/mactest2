@@ -1,4 +1,4 @@
-# Rune desktop builds
+# Chiikawizator desktop builds
 
 The Windows and macOS apps are native Rust executables. Python, Node, a browser and a local web server are not needed to run an installed app. Build tooling uses Rust **1.99.1** and Node **22**; Windows packaging also uses NSIS 3. macOS bundles require macOS 13 or later and are built separately for Apple Silicon and Intel.
 
@@ -20,7 +20,9 @@ From the repository directory:
 ./rune-app/scripts/build-windows.ps1
 ```
 
-This runs Rust tests in the release profile, creates the release executable, verifies the offline interface, and builds a per-user installer at `rune-app/dist/Chiikawizator-Rune_4.0.0_windows-x64-setup.exe`. Using the same profile avoids compiling the graphics dependencies twice. No administrator rights are needed to install the app. The installer supports Russian, English and Japanese. Its pages load the bundled Chiikawa fonts privately; they are not registered system-wide.
+This runs Rust tests in the release profile, creates the release executable, verifies the offline interface, and builds a per-user English installer at `rune-app/dist/Chiikawizator_4.1.0_windows-x64-setup.exe`. Using the same profile avoids compiling the graphics dependencies twice. No administrator rights are needed to install the app. The installed app still offers Russian, English and Japanese. Installer pages load the bundled Chiikawa font privately; it is not registered system-wide.
+
+The app, Start menu entry and desktop shortcut are named **Chiikawizator**. The installer retains the existing 4.0 registry identity and installation directory when upgrading, replaces the old executable and removes only the known old shortcuts. Drawings and settings remain in the existing application data directory. New installations default to `Programs/Chiikawizator`.
 
 For packaging an already verified release, pass `-SkipBuild -SkipSmoke`. Use `-NsisPath PATH_TO_MAKENSIS` if NSIS is not detected automatically.
 
@@ -45,7 +47,7 @@ Verification sets `CHIIKAWIZATOR_OFFLINE=1`, runs `--self-test`, renders `home-r
 
 If verification fails, CI uploads the reports separately only after their text has been sanitized. Unexpected binary files and symlinks prevent that diagnostic upload. Raw application executables and installers are never included in a diagnostic archive.
 
-The `Rune desktop apps` GitHub Actions workflow produces encrypted `.enc` installers and screenshots/check reports. Restore a downloaded installer locally with the same build key in the environment:
+The `Chiikawizator desktop apps` GitHub Actions workflow produces encrypted `.enc` installers and screenshots/check reports. Restore a downloaded installer locally with the same build key in the environment:
 
 ```sh
 node rune-app/scripts/artifact-crypto.mjs decrypt DOWNLOADED.dmg.enc Chiikawizator.dmg

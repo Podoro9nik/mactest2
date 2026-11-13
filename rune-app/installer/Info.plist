@@ -6,11 +6,11 @@
   <key>CFBundleDisplayName</key><string>Chiikawizator</string>
   <key>CFBundleName</key><string>Chiikawizator</string>
   <key>CFBundleIdentifier</key><string>app.chiikawizator.rune</string>
-  <key>CFBundleExecutable</key><string>chiikawizator-rune</string>
+  <key>CFBundleExecutable</key><string>chiikawizator</string>
   <key>CFBundleIconFile</key><string>icon.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>4.0.0</string>
-  <key>CFBundleVersion</key><string>4.0.0</string>
+  <key>CFBundleShortVersionString</key><string>4.1.0</string>
+  <key>CFBundleVersion</key><string>4.1.0</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key><true/>

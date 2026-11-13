@@ -21,7 +21,8 @@ pub(super) fn view(state: &State) -> El {
                 .child(characters(state))
                 .child(details(state))
                 .child(reference(state))
-                .child(el().h(12.0)),
+                .child(el().h(12.0))
+                .scroll_controls(),
         )
         .child(result(state).w(350.0).h_full())
 }
@@ -514,7 +515,7 @@ fn result(state: &State) -> El {
         .min_h(0.0)
         .gap(14.0)
         .child(heading(l.text("result")))
-        .child(content)
+        .child(content.scroll_controls())
         .child(el().w_full().h(1.0).fill(line()))
         .child(balance(state))
         .child(

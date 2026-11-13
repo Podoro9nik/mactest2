@@ -64,7 +64,7 @@ pub(super) fn history(state: &State) -> El {
                 ),
         );
     }
-    content.child(el().h(20.0))
+    content.child(el().h(20.0)).scroll_controls()
 }
 pub(super) fn settings(state: &State) -> El {
     let l = state.lang;
@@ -151,4 +151,5 @@ pub(super) fn settings(state: &State) -> El {
                 .child(para(l.text("credits_note"))),
         )
         .child(el().h(20.0))
+        .scroll_controls()
 }

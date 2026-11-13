@@ -1,5 +1,5 @@
 {
-  "version": "4.0.0",
+  "version": "4.1.0",
   "runeRevision": "ea6ddf8f2c3cd476a3797caad7d77cbe04641d9c",
   "files": [
     ".github/workflows/rune-build.yml",
@@ -57,6 +57,7 @@
     "rune-app/src/ui.rs",
     "rune-app/src/ui/create.rs",
     "rune-app/src/ui/pages.rs",
+    "rune-app/src/ui/scrolling.rs",
     "rune-app/src/ui/tests.rs"
   ]
 }

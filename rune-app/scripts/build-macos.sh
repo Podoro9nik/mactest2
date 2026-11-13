@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION=4.0.0
+VERSION=4.1.0
 SKIP_BUILD=false
 SKIP_TESTS=false
 SKIP_SMOKE=false
@@ -60,8 +60,8 @@ STAGE="$(mktemp -d "$APP_ROOT/target/macos-bundle.XXXXXX")"
 trap 'rm -rf -- "$STAGE"' EXIT
 APP="$STAGE/Chiikawizator.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP_ROOT/dist"
-cp "$BIN" "$APP/Contents/MacOS/chiikawizator-rune"
-chmod 755 "$APP/Contents/MacOS/chiikawizator-rune"
+cp "$BIN" "$APP/Contents/MacOS/chiikawizator"
+chmod 755 "$APP/Contents/MacOS/chiikawizator"
 cp installer/Info.plist "$APP/Contents/Info.plist"
 cp assets/icons/icon.icns "$APP/Contents/Resources/icon.icns"
 cp vendor/rune/LICENSE "$APP/Contents/Resources/RUNE-LICENSE.txt"
@@ -72,10 +72,10 @@ codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 if [[ "$SKIP_SMOKE" == false ]]; then
   # Long CI builds can leave the display asleep; native surfaces need an awake display.
-  /usr/bin/caffeinate -d -i -u node scripts/verify-package.mjs "$APP/Contents/MacOS/chiikawizator-rune" "$APP_ROOT/verification/macos-$ARCH"
+  /usr/bin/caffeinate -d -i -u node scripts/verify-package.mjs "$APP/Contents/MacOS/chiikawizator" "$APP_ROOT/verification/macos-$ARCH"
 fi
 ln -s /Applications "$STAGE/Applications"
-DMG="$APP_ROOT/dist/Chiikawizator-Rune_${VERSION}_macos-${ARCH}.dmg"
+DMG="$APP_ROOT/dist/Chiikawizator_${VERSION}_macos-${ARCH}.dmg"
 hdiutil create -ov -volname Chiikawizator -srcfolder "$STAGE" -format UDZO "$DMG"
 hdiutil verify "$DMG"
 shasum -a 256 "$DMG" > "$DMG.sha256"

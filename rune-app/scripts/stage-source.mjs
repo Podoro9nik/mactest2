@@ -30,7 +30,7 @@ async function visit(directory) {
 }
 await visit(join(repository, 'rune-app'));
 files.push({ source: join(repository, '.github/workflows/rune-build.yml'), rel: '.github/workflows/rune-build.yml' });
-files.push({ rel: 'README.md', bytes: Buffer.from(`# Chiikawizator Rune\n\nNative Windows and macOS application. Русский · English · 日本語.\n\n- [Использование / User guide / 使い方](rune-app/README.md)\n- [Build and personal artifact instructions](rune-app/BUILDING.md)\n\nThe build workflow publishes encrypted personal installers and offline verification reports.\n`) });
+files.push({ rel: 'README.md', bytes: Buffer.from(`# Chiikawizator\n\nNative Windows and macOS application. Русский · English · 日本語.\n\n- [Использование / User guide / 使い方](rune-app/README.md)\n- [Build and personal artifact instructions](rune-app/BUILDING.md)\n\nThe build workflow publishes encrypted personal installers and offline verification reports.\n`) });
 // Validate the complete selection before copying any file into the publication checkout.
 for (const file of files) {
   file.bytes ??= await readFile(file.source);
@@ -65,7 +65,7 @@ for (const { bytes, rel } of files) {
 const manifestInfo = await inspect(join(target, 'rune-source-manifest.json'));
 if (manifestInfo && (manifestInfo.isSymbolicLink() || !manifestInfo.isFile())) throw new Error('Unsafe staging manifest path.');
 await writeFile(join(target, 'rune-source-manifest.json'), JSON.stringify({
-  version: '4.0.0', runeRevision: 'ea6ddf8f2c3cd476a3797caad7d77cbe04641d9c',
+  version: '4.1.0', runeRevision: 'ea6ddf8f2c3cd476a3797caad7d77cbe04641d9c',
   files: files.map(file => file.rel).sort(),
 }, null, 2) + '\n');
 console.log(`Staged ${files.length} Rune source files; credential scan passed. Nothing was pushed.`);

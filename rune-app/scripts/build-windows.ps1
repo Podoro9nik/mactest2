@@ -63,7 +63,7 @@ if (-not $NsisPath) {
 }
 if (-not $NsisPath) { throw 'NSIS 3 is required to package the installer. Pass -NsisPath or add makensis.exe to PATH.' }
 [IO.Directory]::CreateDirectory($distDir) | Out-Null
-$installerPath = Join-Path $distDir 'Chiikawizator-Rune_4.0.0_windows-x64-setup.exe'
+$installerPath = Join-Path $distDir 'Chiikawizator_4.1.0_windows-x64-setup.exe'
 & $NsisPath '/V2' "/DAPP_ROOT=$appRoot" "/DEXE_PATH=$exePath" "/DOUTPUT_PATH=$installerPath" (Join-Path $appRoot 'installer/windows.nsi')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS packaging failed.' }
 $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()

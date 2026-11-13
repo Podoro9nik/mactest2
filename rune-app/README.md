@@ -1,14 +1,14 @@
 # Чиикавизатор · Chiikawizator · ちいかわメーカー
 
-Нативное приложение на Rune для Windows и macOS: придумывайте истории с маленькими друзьями и превращайте фотографии в рисунки. Интерфейс доступен на русском, английском и японском языках.
+Нативное приложение для Windows и macOS: придумывайте истории с маленькими друзьями и превращайте фотографии в рисунки. Интерфейс доступен на русском, английском и японском языках.
 
 ## Установка
 
 | Система | Установщик | Как установить |
 | --- | --- | --- |
-| Windows 10/11, 64 бита | `Chiikawizator-Rune_4.0.0_windows-x64-setup.exe` | Запустите установщик и выберите язык. Приложение устанавливается для текущего пользователя. |
-| macOS 13+, Apple Silicon | `Chiikawizator-Rune_4.0.0_macos-arm64.dmg` | Откройте DMG и перетащите Chiikawizator в Applications. |
-| macOS 13+, Intel | `Chiikawizator-Rune_4.0.0_macos-x64.dmg` | Откройте DMG и перетащите Chiikawizator в Applications. |
+| Windows 10/11, 64 бита | `Chiikawizator_4.1.0_windows-x64-setup.exe` | Запустите английский установщик. Приложение устанавливается для текущего пользователя. |
+| macOS 13+, Apple Silicon | `Chiikawizator_4.1.0_macos-arm64.dmg` | Откройте DMG и перетащите Chiikawizator в Applications. |
+| macOS 13+, Intel | `Chiikawizator_4.1.0_macos-x64.dmg` | Откройте DMG и перетащите Chiikawizator в Applications. |
 
 Python, браузер и отдельный сервер для запуска не требуются. Приложение открывается прямо на вашем компьютере; для создания рисунков нужен интернет. Для обработки фотографий выбранные изображения передаются в онлайн-генератор.
 
@@ -22,6 +22,10 @@ Python, браузер и отдельный сервер для запуска 
 4. Дождитесь результата: оригинал без водяного знака появится в «Результат» и сохранится в «Мои рисунки». Отдельного предпросмотра и повторного подтверждения нет.
 
 Рядом со стоимостью генерации отображается остаток кредитов. Баланс обновляется при запуске и после завершения задачи; его также можно обновить вручную отдельной кнопкой. Проверка баланса не блокирует генерацию.
+
+## Прокрутка
+
+В длинных разделах видна полоса прокрутки. Перетаскивайте её ползунок, нажимайте на дорожку или прокручивайте колёсиком. Можно также зажать среднюю кнопку мыши над содержимым и двигать мышь вверх или вниз; отпускание кнопки сразу прекращает прокрутку. Это работает в форме создания, результате, истории и настройках.
 
 ## Чиикавизировать фотографии
 
@@ -38,12 +42,13 @@ Python, браузер и отдельный сервер для запуска 
 
 ## English
 
-Chiikawizator is a native Rune app for **Windows x64 and macOS 13+**, with separate Apple Silicon and Intel installers. Open the Windows installer, or drag the app from the DMG into Applications. No Python, browser or separate server is required. An internet connection is needed to create drawings.
+Chiikawizator is a native app for **Windows x64 and macOS 13+**, with separate Apple Silicon and Intel installers. Open the English Windows installer, or drag the app from the DMG into Applications. The app itself offers three interface languages. No Python, browser or separate server is required. An internet connection is needed to create drawings.
 
 - **Create → From an idea:** describe a scene, choose a character and adjust the background, mood and image shape.
 - **Transform photos:** combine up to eight photos into one scene. Classic transformation is the default; Full creature uses a creature face and body while retaining clothes, colors and accessories.
 - Check the displayed price before choosing **Make a drawing**. The finished original is purchased automatically, then appears in **Result** and **My drawings**, without a preview step.
 - Change the interface language in **Settings**. If a connection is interrupted, refresh the saved task instead of starting it again. Previously purchased drawings can also be recovered by ID.
+- Scroll overflowing panels with the mouse wheel, drag the visible scrollbar thumb or click its track. You can also hold the middle mouse button over the content and drag vertically; releasing the button stops scrolling immediately.
 
 Your remaining credits appear beside the generation price. The balance refreshes on startup and after a task finishes, and you can refresh it manually. Checking the balance does not block generation.
 
@@ -51,12 +56,13 @@ Personal installers include configured access and are intended for their owner a
 
 ## 日本語
 
-ちいかわメーカーは、**Windows 64ビット版とmacOS 13以降**で使えるRune製のアプリです。MacはApple Silicon版とIntel版があります。Windowsではインストーラーを実行し、MacではDMG内のアプリをApplicationsへドラッグしてください。Pythonやブラウザー、別のサーバーは不要です。作品を描くときはインターネット接続が必要です。
+ちいかわメーカーは、**Windows 64ビット版とmacOS 13以降**で使えるアプリです。MacはApple Silicon版とIntel版があります。Windowsでは英語のインストーラーを実行し、MacではDMG内のアプリをApplicationsへドラッグしてください。アプリ内では日本語、英語、ロシア語を選べます。Pythonやブラウザー、別のサーバーは不要です。作品を描くときはインターネット接続が必要です。
 
 - **つくる → ことばから**：物語を書いて、友だち、背景、気持ち、画像の形を選びます。
 - **写真から**：写真を8枚まで追加して、ひとつの場面にまとめます。「いつもの変身」が初期設定です。「からだも完全に変身」では、服や色、小物にその人らしさを残しながら、顔や体も小さな生きものに変わります。
 - 表示された料金を確認して**描いてもらう**を押すと、完成した原本を自動的に購入します。プレビューでの確認はなく、透かしのない原本が**できあがり**と**作品たち**に表示されます。
 - **設定**で日本語、英語、ロシア語を切り替えられます。接続が途切れたときは、保存済みの処理の状態を確認してください。購入済み作品はIDからも復元でき、再購入は不要です。
+- 長い画面はマウスホイール、スクロールバーのつまみ、またはバーのクリックで移動できます。内容の上でマウスの中央ボタンを押したまま上下にドラッグする方法も使えます。ボタンを離すとすぐに止まります。
 
 生成料金の横に、残りのクレジットが表示されます。起動時と処理の終了後に自動更新され、手動でも更新できます。残高の確認中も生成を始められます。
 
@@ -64,4 +70,4 @@ Personal installers include configured access and are intended for their owner a
 
 ---
 
-Версия 4.0.0. Персонажи: nagano / chiikawa committee. Сведения о шрифтах и их лицензиях: [assets/fonts/NOTICE.md](assets/fonts/NOTICE.md).
+Версия 4.1.0. Персонажи: nagano / chiikawa committee. Сведения о шрифтах и их лицензиях: [assets/fonts/NOTICE.md](assets/fonts/NOTICE.md).

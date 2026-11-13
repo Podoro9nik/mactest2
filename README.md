@@ -1,4 +1,4 @@
-# Chiikawizator Rune
+# Chiikawizator
 
 Native Windows and macOS application. Русский · English · 日本語.
 
